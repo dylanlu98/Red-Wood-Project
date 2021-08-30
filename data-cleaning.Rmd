@@ -1,0 +1,23 @@
+---
+title: "EDA"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(caret)
+```
+
+```{r}
+all <- read.csv("sonoma-data-all.csv")
+log <- read.csv("sonoma-data-log.csv")
+net <- read.csv("sonoma-data-net.csv")
+dates <- read.csv("sonoma-data-net.csv")
+```
+
+```{r}
+head(all)
+```
+
