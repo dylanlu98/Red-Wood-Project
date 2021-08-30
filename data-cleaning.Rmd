@@ -2,7 +2,24 @@
 title: "EDA"
 output: html_document
 ---
+---
+1.(a) (Dylan)
+---
+---
+1.(b) (Andrew)
+---
 
+---
+Part2.(a) (Dylan)
+---
+Part2.(a) (Andrew)
+---
+---
+Part2.(b) (Dylan)
+---
+---
+Part2.(b) (Andrew)
+---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
@@ -10,14 +27,14 @@ library(ggplot2)
 library(caret)
 ```
 
-```{r}
+```{r, Dylan}
 all <- read.csv("sonoma-data-all.csv")
 log <- read.csv("sonoma-data-log.csv")
 net <- read.csv("sonoma-data-net.csv")
 dates <- read.csv("sonoma-data-net.csv")
 ```
 
-```{r}
+```{r, Andrew}
 head(all)
 ```
 
