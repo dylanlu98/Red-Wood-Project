@@ -1,0 +1,92 @@
+---
+title: "Red Wood Data Analysis Report"
+output: html_document
+author: "Andrew, Dylan (Shi-Ting Lu)"
+---
+## Set Up
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#library(tidyverse)
+#library(ggplot2)
+#library(caret)
+```
+
+```{r, Dylan}
+all <- read.csv("sonoma-data-all.csv")
+log <- read.csv("sonoma-data-log.csv")
+net <- read.csv("sonoma-data-net.csv")
+dates <- read.csv("sonoma-data-net.csv")
+```
+
+
+## 1 Data collection
+
+#### (a) (Andrew)
+Start the summary here.
+
+#### (b) (Andrew)
+
+***
+
+## 2 Data cleaning
+
+#### (a) (Dylan)
+
+```{r}
+print("Hello World!")
+```
+
+
+#### (b) (Dylan)
+
+#### (c) (Dylan)
+
+#### (d) (Dylan)
+
+#### (e) (Dylan)
+
+***
+
+#### (a) (Andrew)
+```{r}
+
+```
+
+#### (b) (Andrew)
+
+#### (c) (Andrew)
+
+#### (d) (Andrew)
+
+#### (e) (Andrew)
+
+***
+
+## 3 Data Exploration
+
+#### (a) (Dylan)
+
+#### (b) (Dylan)
+
+#### (c) (Dylan)
+
+#### (d) (Dylan)
+
+***
+
+#### (a) (Andrew)
+
+#### (b) (Andrew)
+
+#### (c) (Andrew)
+
+#### (d) (Andrew)
+
+```{r, Andrew}
+head(all)
+```
+
+
+---
+Andrew was here
+---
