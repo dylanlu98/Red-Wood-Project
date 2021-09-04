@@ -33,7 +33,7 @@ Nodes had two means of capturing/transferring data: on-site logger stored readin
 Sensors were calibrated before being deployed in the field using two trials called roof and chamber. In the roof exercise, nodes were placed in direct view of sunlight atop a building to test the PAR measurements and which were compared to a well known reference. In the chamber phase, temperature and humidity sensors exposed to wide range of conditions: from 5-30 degrees Celsius and between 20-90 %RH. Before being deployed the data harvesting querying was tested in field on a sample tree in similar conditions to verify communication between nodes and on-site internet connected gateway.
 
 ### What is the duration of data recording?
-Data was recorded over period of almost 44 days from 4/27/2004 5:10pm (epoch 1) to 6/10/2004 2:00pm (epoch 12635). Measurements were taken every 5 minutes and battery operated nodes were duty cycled to conserve power when not operating (on for 4 seconds to take measurements then turned off until next reading). 
+Data was recorded over period of almost 44 days from 4/27/2004 5:10pm to 6/10/2004 2:00pm. Measurements were taken every 5 minutes and battery operated nodes were duty cycled to conserve power when not operating (on for 4 seconds to take measurements then turned off until next reading). 
 
 ### What are the main variables of interest?
 Researchers were interested in traditional climate variables temperature, humidity, and light levels which were measured via Photosynthetically Active Radiation (PAR). Light wavelengths between 350nm–700nm were captured in two measurements: incident (direct), which provides information about energy available for photosynthesis, and reflected (ambient), which was used for satellite validation of measurements.
@@ -48,18 +48,10 @@ The main difference between the files is that the scaling/precision on voltage m
 ## 2 Data cleaning
 
 ```{r, read-in-data, include=FALSE}
-# sensor data files
 all <- read.csv("sonoma-data-all.csv")
 log <- read.csv("sonoma-data-log.csv")
 net <- read.csv("sonoma-data-net.csv")
-
-# metadata files
-location <- read.table("mote-location-data.txt", sep=",", header = TRUE)
-dates <- read.table("sonoma-dates-formatted", sep=",", header = TRUE)   # losing some precision on epochDays
-
-
-# get unique key for all data - prompt indicates combo of these two fields
-primary_data_key <- unique(all[c("epoch", "nodeid")])
+dates <- read.csv("sonoma-data-net.csv")
 ```
 
 ### (a - histograms of each variable in each file)
@@ -73,65 +65,77 @@ all = all %>%
     voltage <= voltage_log_cutoff ~ "log"
 ))
 
-# TODO:: will want to show the date range...paper lists range that's different from net file
-# want to show that net has duplicates using hist...use primary key
-
 
 # epoch plot showing network failure
 ggplot(all, aes(epoch, fill = data_source)) +
   geom_histogram(binwidth = 50) +
-  ggtitle("Number of Entries by Epoch ")
+  ggtitle("Number of Entries by Epoch and Data Source ")
+
+
+# 
+ggplot(all, aes(node_id, fill = data_source)) +
+  geom_histogram(binwidth = 50) +
+  ggtitle("Number of Entries by Epoch and Data Source ")
 
 # voltage plot shows issue with units
 ggplot(all, aes(voltage, fill = data_source)) +
   geom_histogram(binwidth = 50) +
   ggtitle("Voltage Units Differs Across Data Source")
 
-# humidity/humid_temp has some outliers
-ggplot(all, aes(humid_temp, fill = data_source)) +
-  geom_histogram(binwidth = 1) +
-  ggtitle("Number of Entries by Humidity Temp ")
-
 ```
 
 ### Which variable is not consistent?
 The scaling and/or precision of voltage is not consistent between the two sources. Network file voltage is several orders of magnitude greater (readings in the hundreds) than the same readings in the log file (readings in the single digits).
 
-### Convert the data to the same range. No code, but explain what we did? (Question: Are we talking date range, voltage values, or both??)
-```{r, convert-range, include=FALSE}
-
-
-```
+### Convert the data to the same range. No code, but explain what we did?
 
 
 ### (b - remove missing data)
 ### Comment on the number of missing measurements and the corresponding date/time period?
-Using the "sonoma-dates-formatted" file we can see that there is a large hole in the number of network measurements.
-```{r, remove-missing-data}
 
-```
-
-### (c - incorporate location data from other file. State number of variables in new data frame)
-```{r, incorporate-location-data}
-all <- merge(all, location, by.x = "nodeid", by.y = "ID")
-```
-New data frame has 14 variables (15 with indicator denoting data source).
+### (c - incorporate location data from other file)
 
 ### (d - visually identify outliers for each of following: humidity, humid temp, hamatop, hamabot. Remove and comment on rationale for removing)
 
 ### (e bonus - discuss other possible outliers and explain reason why it is better to remove them than to keep)
 
+***
+
+### (a) (Andrew)
+```{r}
+
+```
+
+### (b) (Andrew)
+
+### (c) (Andrew)
+
+### (d) (Andrew)
+
+### (e) (Andrew)
 
 ***
 
 ## 3 Data Exploration
 
-### (a - pairwise scatterplots of some variables with resonable time period)
-### Explain choice and describe findings:
+### (a) (Dylan)
 
-### (b - predictors associated with Incident PAR)
-### Are any of the predictors associated with Incident PAR? If so, explain the relationship.
+### (b) (Dylan)
 
-### (c)
+### (c) (Dylan)
 
-### (d)
+### (d) (Dylan)
+
+***
+
+### (a) (Andrew)
+
+### (b) (Andrew)
+
+### (c) (Andrew)
+
+### (d) (Andrew)
+
+```{r, Andrew}
+head(all)
+```
