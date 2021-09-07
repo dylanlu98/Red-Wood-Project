@@ -12,6 +12,11 @@ library(tidyverse)
 library(ggplot2)
 library(caret)
 library(dplyr)
+library(purrr)
+library(lubridate) # for working with dates
+library(ggplot2)  # for creating graphs
+library(scales)   # to access breaks/formatting functions
+library(gridExtra) # for arranging plots
 ```
 
 ## 1 Data collection
@@ -36,10 +41,10 @@ Sensors were calibrated before being deployed in the field using two trials call
 Data was recorded over period of almost 44 days from 4/27/2004 5:10pm to 6/10/2004 2:00pm. Measurements were taken every 5 minutes and battery operated nodes were duty cycled to conserve power when not operating (on for 4 seconds to take measurements then turned off until next reading). 
 
 ### What are the main variables of interest?
-Researchers were interested in traditional climate variables temperature, humidity, and light levels which were measured via Photosynthetically Active Radiation (PAR). Light wavelengths between 350nm–700nm were captured in two measurements: incident (direct), which provides information about energy available for photosynthesis, and reflected (ambient), which was used for satellite validation of measurements.
+Researchers were interested in traditional climate variables temperature, humidity, and light levels which were measured via Photosynthetically active radiation  (PAR). Light wavelengths between 350nm–700nm were captured in two measurements: incident (direct), which provides information about energy available for photosynthesis, and reflected (ambient), which was used for satellite validation of measurements.
 
 ###  What is difference between data in two different files?
-Data in "sonoma-data-log.csv" represents sensor data saved from the logger to the flash memory on the actual node tha was retreived after the deployment. Data in "sonoma-data-net-csv" is the data retrieved from the wireless network during the deployment. 
+Data in "sonoma-data-log.csv" represents sensor data saved from the logger to the flash memory on the actual node that was retrieved after the deployment. Data in "sonoma-data-net-csv" is the data retrieved from the wireless network during the deployment. 
 
 The main difference between the files is that the scaling/precision on voltage measurements appear different between the two sources. The network file also appears to have some row duplication.
 
@@ -73,7 +78,7 @@ ggplot(all, aes(epoch, fill = data_source)) +
 
 
 # 
-ggplot(all, aes(node_id, fill = data_source)) +
+ggplot(all, aes(nodeid, fill = data_source)) +
   geom_histogram(binwidth = 50) +
   ggtitle("Number of Entries by Epoch and Data Source ")
 
@@ -83,19 +88,131 @@ ggplot(all, aes(voltage, fill = data_source)) +
   ggtitle("Voltage Units Differs Across Data Source")
 
 ```
+```{r}
+all %>%
+  keep(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+    facet_wrap(~ key, scales = "free") + 
+    geom_histogram()
+```
+
 
 ### Which variable is not consistent?
 The scaling and/or precision of voltage is not consistent between the two sources. Network file voltage is several orders of magnitude greater (readings in the hundreds) than the same readings in the log file (readings in the single digits).
 
 ### Convert the data to the same range. No code, but explain what we did?
 
+We transformed the voltage readings in the network file by dividing it by 100. Then we combined the transformed network file and log file to get all.2 file with consistent variables. 
+```{r}
+net.2 = net %>%
+  mutate(voltage = voltage / 100)
+all.2 = rbind(net.2, log)
+all.2
+all.2 %>%
+  keep(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+    facet_wrap(~ key, scales = "free") + 
+    geom_histogram()
+```
+
 
 ### (b - remove missing data)
+We removed all readings that were taken when the node's voltage was higher than 3 volts or lower than 2.4 volts. 143312 readings were removed. 
+```{r}
+all.2 %>% 
+  ggplot(aes(voltage)) + geom_histogram()
+all.2 %>% 
+  summary()
+quantile(all.2$voltage, prob = c(.35,.97))
+all.3 = all.2 %>%
+  filter(voltage >= 2.4 & voltage <= 3)
+all.3 %>% 
+  ggplot(aes(voltage)) + geom_histogram()
+nrow(all.2) - nrow(all.3)
+```
 ### Comment on the number of missing measurements and the corresponding date/time period?
+There are 7568 row of readings containing at least a missing measurement. The missing measurements have corresponding date between May 25 to May 29 and at Nov 10.During May 25 to May 29, missing measurements occurred through out the day. Less errors occurred at noon while more errors occurred at night and in the early morning. In Nov 10, most error occurred at 14:25:00. 
+
+```{r}
+all.4 = na.omit(all.3)
+missings = all.3[rowSums(is.na(all.3)) > 0, ]
+summary(missings)
+missings.2 <- missings
+missings.2$result_time <-as.Date(missings.2$result_time)
+hist(missings.2$result_time, breaks = "months")
+
+missings.3 = missings
+missings.3$result_time <-ymd_hms(missings.3$result_time)
+missings.3 %>% ggplot(aes(result_time, ..count..)) + 
+    geom_histogram() +
+    theme_bw() + xlab(NULL) +
+    scale_x_datetime(breaks = date_breaks("3 months"), )
+
+par(mfrow=c(3,3))
+# 25
+ggplot(missings.3, aes(x=result_time)) + 
+  geom_histogram() +
+  scale_x_datetime(limits = c(ymd_hms("2004-05-25 00:00:01"),ymd_hms("2004-05-25 23:59:59")))
+
+# 26
+ggplot(missings.3, aes(x=result_time)) + 
+  geom_histogram() +
+  scale_x_datetime(limits = c(ymd_hms("2004-05-26 00:00:01"),ymd_hms("2004-05-26 23:59:59")))
+# 27
+ggplot(missings.3, aes(x=result_time)) + 
+  geom_histogram() +
+  scale_x_datetime(limits = c(ymd_hms("2004-05-27 00:00:01"),ymd_hms("2004-05-27 23:59:59")))
+# 28
+ggplot(missings.3, aes(x=result_time)) + 
+  geom_histogram() +
+  scale_x_datetime(limits = c(ymd_hms("2004-05-28 00:00:01"),ymd_hms("2004-05-28 23:59:59")))
+# 29
+ggplot(missings.3, aes(x=result_time)) + 
+  geom_histogram() +
+  scale_x_datetime(limits = c(ymd_hms("2004-05-29 00:00:01"),ymd_hms("2004-05-29  23:59:59")))
+
+#11-10
+ggplot(missings.3, aes(x=result_time)) + 
+  geom_histogram() +
+  scale_x_datetime(limits = c(ymd_hms("2004-11-10 00:00:01"),ymd_hms("2004-11-10 23:59:59")))
+```
+
 
 ### (c - incorporate location data from other file)
+After we joined the location data, we have 15 variables.
+```{r}
+locations <- read.table(file = "mote-location-data.txt", header = TRUE, sep = ",")
+colnames(locations)[1] = "nodeid"
+#Join data. Retain all rows in a that have a match in b.
+all.5 = left_join(all.4,locations, by = "nodeid")
+all.6 = na.omit(all.5)
+```
 
 ### (d - visually identify outliers for each of following: humidity, humid temp, hamatop, hamabot. Remove and comment on rationale for removing)
+We can remove all humidity reading < 21 which is less than the 1% quantile, humid_temp > 100 which is larger than the 99% quantile, maybe hamabot > 4000, which is larger than the 98% quantile.
+
+```{r}
+
+vars_want = all.6[c("humidity","humid_temp","hamatop","hamabot")]
+  
+
+vars_want %>%
+  keep(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+    facet_wrap(~ key, scales = "free") + 
+    geom_histogram()
+
+```
+```{r}
+quantile(vars_want$humidity, prob = c(.01,.95))
+quantile(vars_want$humid_temp, prob = c(.05, .95))
+quantile(vars_want$hamatop, prob = c(.05, .93))
+quantile(vars_want$hamabot, prob = c(.05, .99))
+```
+
 
 ### (e bonus - discuss other possible outliers and explain reason why it is better to remove them than to keep)
 
