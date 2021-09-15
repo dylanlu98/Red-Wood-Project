@@ -1,14 +1,14 @@
 # STA521 Project 1 - Red Wood Data Analysis Report
 ## Andrew Amore & Dylan (Shi-Ting) Lu
 
-#TODO::
+# TODO::
 - think we need to try and match the quartiles from the paper (get close to the values or have an explanation for why they don't match/aren't close)
 - identify one reading from each source over each epoch. Composite key should only have one reading for every entry in our analysis set.
-
+- go over charts (make sure the trends make sense, plots have accurate labels, titles, are legible, etc.)
 
 
 ***
-### Initial Contents of Provided Readme
+### Initial Contents of Tolle et al. Readme
 A Macroscope in the Redwoods
 Original Data
 
