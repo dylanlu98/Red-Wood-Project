@@ -14,11 +14,6 @@ header-includes: |
   \titlespacing{\subsubsection}{0pt}{12pt plus 2pt minus 1pt}{0pt plus 1pt minus 1pt}
 ---
 
-TODO::
-  - i think we need to try and match the quartiles from the paper (get close to the values or have an explanation for why they don't match/aren't close)
-  - identify one reading from each source over each epoch. Composite key should only have one reading for every entry in our analysis set.
-
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(tidyverse)
@@ -197,9 +192,9 @@ all.2 %>%
   ggplot(aes(voltage)) + geom_histogram() + 
   ggtitle("Voltage Frequency Before Adjustment")
 
-all.2 %>% 
-  summary()
-quantile(all.2$voltage, prob = c(.35,.97))
+#all.2 %>% 
+#  summary()
+#quantile(all.2$voltage, prob = c(.35,.97))
 
 all.3 = all.2 %>%
   filter(voltage >= 2.4 & voltage <= 3)
@@ -231,7 +226,7 @@ There are 7568 row of readings containing at least a missing measurement. The mi
 ```{r}
 all.4 = na.omit(all.3)
 missings = all.3[rowSums(is.na(all.3)) > 0, ]
-summary(missings)
+#summary(missings)
 missings.2 <- missings
 missings.2$result_time <-as.Date(missings.2$result_time)
 hist(missings.2$result_time, breaks = "months")
@@ -287,7 +282,7 @@ all.6 = na.omit(all.5)
 
 
 ```{r, get-good-date-column, echo=FALSE}
-# timestamps from the raw data files don't match the actually record epoch...use the dates file to update
+# update result time with accurate values from the metadata file.
 all = all %>% 
   inner_join(dates, by = c("epoch" = "epochNums")) %>%
   select(-result_time) %>%
@@ -321,9 +316,9 @@ quantile(vars_want$hamabot, prob = c(.05, .99))
 
 ```{r, identify-outliers-box-whisker}
 # visually display outliers
-boxplot(vars_want$humid_temp)
-boxplot(vars_want$hamatop)
-boxplot(vars_want$hamabot)
+# boxplot(vars_want$humid_temp)
+# boxplot(vars_want$hamatop)
+# boxplot(vars_want$hamabot)
 ```
 
 
@@ -368,37 +363,60 @@ Idea List (things to investigate):
 ### Log Transform of Histograms
 The incident and reflected PAR histograms from Tolle et al. (figure 3a) have long tails and with large numbers of observations around 0 which make the charts hard to discern. We present this data after taking a log transform of the observations and present the results side-by-side with the initial chart versions (non-log scale). 
 
-```{r, 5a-incident-charts}
+```{r, 5a-incident-charts, fig.show="hold", out.width="45%"}
 # incident PAR charts
+# Original Chart - No Log Transform
+ggplot(all, aes(x = incident_par)) +
+  geom_histogram(fill = "blue4", color = "white", 
+                 aes(y = (..count..)/sum(..count..)), binwidth = 250) +
+  scale_y_continuous(labels = scales::percent_format(), n.breaks = 10) +
+  labs(title = 'Incident PAR', subtitle = 'Original Scale (No Log Transform)') +
+  xlab(expression('μmol/m'^2*'/s'))
+
+# Log Transform
+ggplot(all, aes(x = log(incident_par))) +
+  geom_histogram(aes(y = (..count..)/sum(..count..)), binwidth = .1) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(title = 'Incident PAR', subtitle = 'Log Scale') +
+  xlab(expression('ln(μmol/m'^2*'/s)'))
+
+```
+We see the log chart more accurately convey the long tail, however, it might be misleading at first glance as PAR measurements appear more concentrated. It's important that the reader understand the log nature of the chart before reaching an incorrect conclusion and is why we've decided to display charts side-by-side.
+
+```{r, 5a-reflected-charts, fig.show="hold", out.width="50%"}
+# reflected PAR
 
 ```
 
 
-```{r, 5a-better-value-plot}
-# log with freq counts
-ggplot(all, aes(log(incident_par))) +
-  geom_histogram(fill = "blue", binwidth = .1, color = "white") +
-  ggtitle("Log Transform - Incident PAR")
-
-# non-log plot with freq counts
-ggplot(all, aes(incident_par)) +
-  geom_histogram(fill = "blue", binwidth = 250, color = "white") +
-  ggtitle("No Log Transform - Incident PAR")
-
-# log with percentages
-ggplot(all, aes(x = log(incident_par))) +
-  geom_histogram(aes(y = (..count..)/sum(..count..)), binwidth = .1) +
-  scale_y_continuous(labels = scales::percent_format()) +
-  ggtitle("Log Transform - Incident PAR (Percentage Scale)")
 
 
-# non-log with percentages
-ggplot(all, aes(x = incident_par)) +
-  geom_histogram(aes(y = (..count..)/sum(..count..)), binwidth = 250) +
-  scale_y_continuous(labels = scales::percent_format()) +
-  ggtitle("No Log Transform - Incident PAR (Percentage Scale)")
 
 
+```{r}
+#DEV CHUNK
+# # log with freq counts
+# ggplot(all, aes(log(incident_par))) +
+#   geom_histogram(fill = "blue", binwidth = .1, color = "white") +
+#   ggtitle("Log Transform - Incident PAR")
+# 
+# # non-log plot with freq counts
+# ggplot(all, aes(incident_par)) +
+#   geom_histogram(fill = "blue", binwidth = 250, color = "white") +
+#   ggtitle("No Log Transform - Incident PAR")
+# 
+# # log with percentages
+# ggplot(all, aes(x = log(incident_par))) +
+#   geom_histogram(aes(y = (..count..)/sum(..count..)), binwidth = .1) +
+#   scale_y_continuous(labels = scales::percent_format()) +
+#   ggtitle("Log Transform - Incident PAR (Percentage Scale)")
+# 
+# 
+# # non-log with percentages
+# ggplot(all, aes(x = incident_par)) +
+#   geom_histogram(aes(y = (..count..)/sum(..count..)), binwidth = 250) +
+#   scale_y_continuous(labels = scales::percent_format()) +
+#   ggtitle("No Log Transform - Incident PAR (Percentage Scale)")
 ```
 
 
