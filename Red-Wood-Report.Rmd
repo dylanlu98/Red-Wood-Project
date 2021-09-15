@@ -4,17 +4,19 @@ author: "Andrew Amore, Dylan (Shi-Ting) Lu"
 output:
   pdf_document: default
   html_document: default
+classoption:
+- twocolumn
+
+header-includes: |
+  \usepackage{titlesec}
+  \titlespacing{\section}{0pt}{12pt plus 2pt minus 1pt}{0pt plus 1pt minus 1pt}
+  \titlespacing{\subsection}{0pt}{12pt plus 2pt minus 1pt}{0pt plus 1pt minus 1pt}
+  \titlespacing{\subsubsection}{0pt}{12pt plus 2pt minus 1pt}{0pt plus 1pt minus 1pt}
+  
 ---
 
-General Notes/To do:
-- PAR measurements are off, the units are flux. I'm not sure if we need to just scale the given values or do any manipulation. I think we should have our min/max match the table in the paper
-- Need to derive reflected PAR from direct PAR (just a ratio)
-- 
-
-
-
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(tidyverse)
 library(ggplot2)
 library(caret)
@@ -26,8 +28,7 @@ library(scales)   # to access breaks/formatting functions
 library(gridExtra) # for arranging plots
 ```
 
-## 1 Data collection
-
+## 1a Data Collection
 ### (a - Paper Summary)
 The purpose of the study is twofold: capture information about a single redwood tree canopy over time and provide a roadmap for future macroscopic studies using a multi-sensor network.
 
@@ -35,7 +36,7 @@ The data was collected in Sonoma, California on a single Redwood tree over a per
 
 Based on this study, researchers were able to verify the existence of dynamic spatio-temporal gradients surrounding the tree and prove that complex biological theories can be validated using this measurement framework. Researchers highlighted lesson's learned, beneficial for future studies, highlighting sensor sensitivity based on positioning and yield issues from memory/network constraints.
 
-### (b - Data Collection) 
+### (b - Data Collection)
 ### How are sensors deployed? 
 Nodes (sensor housing) were attached to the body of one redwood tree at various radial, angular, and vertical distances. At  roughly 2-meter spacing intervals the first sensor was placed 15m from ground level and the last sensor at 70m above ground level. The majority of nodes used in the analysis were placed on the west side of the tree about 0.1m - 1m from the tree trunk. Several nodes were placed outside of the measurement envelope to monitor readings in the immediate vicinity.
 
@@ -49,14 +50,14 @@ Data was recorded over period of almost 44 days from 4/27/2004 5:10pm (epoch 1) 
 ### What are the main variables of interest?
 Researchers were interested in traditional climate variables temperature, humidity, and light levels which were measured via Photosynthetically Active Radiation (PAR). Light wavelengths between 350nm–700nm were captured in two measurements: incident (direct), which provides information about energy available for photosynthesis, and reflected (ambient), which was used for satellite validation of measurements.
 
-###  What is difference between data in two different files?
-Data in "sonoma-data-log.csv" represents sensor data saved from the logger to the flash memory on the actual node that was retrieved after the deployment. Data in "sonoma-data-net-csv" is the data retrieved from the wireless network during the deployment. 
+### What is difference between data in two different files?
+Data in "sonoma-data-log.csv" represents sensor data saved from the logger to the flash memory on the actual node that was retrieved after the deployment. Data in "sonoma-data-net-csv" is the data retrieved from the wireless network during the deployment.
 
 The main difference between the files is that the scaling/precision on voltage measurements appear different between the two sources. The network file also appears to have some row duplication.
 
 ***
 
-## 2 Data cleaning
+## 2 Data Cleaning
 ```{r, read-in-data, include=FALSE}
 all <- read.csv("sonoma-data-all.csv")
 log <- read.csv("sonoma-data-log.csv")
@@ -149,7 +150,8 @@ all %>%
 The scaling and/or precision of voltage is not consistent between the two sources. Network file voltage is several orders of magnitude greater (readings in the hundreds) than the same readings in the log file (readings in the single digits). There are also large time gaps between the two files denoted by measurement count differences by epoch and data source as well as duplicated measurement rows.
 
 ### Convert the data to the same range. No code, but explain what we did?
-We transformed the voltage readings in the network file by dividing it by 100. Then we combined the transformed network file and log file to get all.2 file with consistent variables. 
+We transformed the voltage readings in the network file by dividing it by 100. Then we combined the transformed network file and log file to get all.2 file with consistent variables.
+
 ```{r, covert-voltage-range}
 net.2 = net %>%
   mutate(voltage = voltage / 100)
@@ -181,6 +183,7 @@ all.2 %>%
 
 ### (b - remove missing data)
 We removed all readings that were taken when the node's voltage was higher than 3 volts or lower than 2.4 volts. 143312 readings were removed. 
+
 ```{r, remove-missing-data}
 all.2 %>% 
   ggplot(aes(voltage)) + geom_histogram() + 
@@ -204,7 +207,6 @@ nrow(all.2) - nrow(all.3)
 # want to remove the duplicate readings talked about in the code block above
 
 ```
-
 
 
 ### Comment on the number of missing measurements and the corresponding date/time period?
@@ -268,9 +270,9 @@ all.6 = na.omit(all.5)
 ```
 
 
-```{r, get-good-date-column}
+```{r, get-good-date-column, echo=FALSE}
 # timestamps from the raw data files don't match the actually record epoch...use the dates file to update
-all %>% 
+all = all %>% 
   inner_join(dates, by = c("epoch" = "epochNums")) %>%
   select(-result_time) %>%
   relocate(epochDates, epochDays)
@@ -280,8 +282,8 @@ all %>%
 
 ### (d - visually identify outliers for each of following: humidity, humid temp, hamatop, hamabot. Remove and comment on rationale for removing)
 We can remove all humidity reading < 21 which is less than the 1% quantile, humid_temp > 100 which is larger than the 99% quantile, maybe hamabot > 4000, which is larger than the 98% quantile.
-```{r, identify-outliers}
 
+```{r, identify-outliers}
 vars_want = all.6[c("humidity","humid_temp","hamatop","hamabot")]
 
 vars_want %>%
@@ -300,7 +302,7 @@ quantile(vars_want$hamatop, prob = c(.05, .93))
 quantile(vars_want$hamabot, prob = c(.05, .99))
 ```
 
-Large amount of outliers for Hamatop
+
 ```{r, identify-outliers-box-whisker}
 
 boxplot(vars_want$humid_temp)
