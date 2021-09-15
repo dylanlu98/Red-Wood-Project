@@ -12,8 +12,12 @@ header-includes: |
   \titlespacing{\section}{0pt}{12pt plus 2pt minus 1pt}{0pt plus 1pt minus 1pt}
   \titlespacing{\subsection}{0pt}{12pt plus 2pt minus 1pt}{0pt plus 1pt minus 1pt}
   \titlespacing{\subsubsection}{0pt}{12pt plus 2pt minus 1pt}{0pt plus 1pt minus 1pt}
-  
 ---
+
+TODO::
+  - i think we need to try and match the quartiles from the paper (get close to the values or have an explanation for why they don't match/aren't close)
+  - identify one reading from each source over each epoch. Composite key should only have one reading for every entry in our analysis set.
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
@@ -111,8 +115,8 @@ all %>%
   ggplot(aes(x=data_source, y=n, fill = data_source)) +
     geom_bar(stat = "identity") +
     geom_text(aes(label=n), position=position_dodge(width=0.9), vjust=-0.25) +
-  ggtitle("Number of Measurements with Duplicated Readings")
-# Coment
+  ggtitle("Number of Measurements with Duplicated Composite Keys (Epoch, NodeID)")
+
 ##  there might be some differences in the readings...will want to check that in addition to just the primary key duplication
 ```
 We see in the above figure that there are duplicated measurement rows where the sensor recorded data multiple times for the same measurement interval. These duplicates should be removed before analysis.
@@ -133,6 +137,10 @@ all = all %>%
   mutate(incident_par = hamatop * par_calibration_factor,
          reflected_par = hamabot * par_calibration_factor
   )
+
+# set all NAs to 0 
+all$incident_par[is.na(all$incident_par)] = 0
+all$reflected_par[is.na(all$reflected_par)] = 0
 ```
 
 
@@ -157,11 +165,11 @@ net.2 = net %>%
   mutate(voltage = voltage / 100)
 all.2 = rbind(net.2, log)
 
-######### andrew adjustment - alter voltage in existing structure or create new objects?
-# here i'm just altering in place
+######### AA: alter voltage in existing structure or create new objects?
 all = all %>%
   mutate(voltage = case_when(
-    data_source == 'net' ~ voltage / 100
+    data_source == 'net' ~ voltage / 100,
+    TRUE ~ voltage
   ))
 
 all %>%
@@ -171,7 +179,7 @@ all %>%
     facet_wrap(~ key, scales = "free") + 
     geom_histogram()
 
-######### end update
+######### 
 
 all.2 %>%
   keep(is.numeric) %>% 
@@ -196,6 +204,12 @@ quantile(all.2$voltage, prob = c(.35,.97))
 all.3 = all.2 %>%
   filter(voltage >= 2.4 & voltage <= 3)
 
+######### AA adjustment to dataframe in place
+all = all %>%
+  filter(voltage >= 2.4 & voltage <= 3)
+######### 
+
+
 all.3 %>% 
   ggplot(aes(voltage)) + geom_histogram() +
   ggtitle("Voltage Frequency After Adjustment")
@@ -204,7 +218,9 @@ nrow(all.2) - nrow(all.3)
 ```
 
 ```{r, remove-duplicate-readings}
-# want to remove the duplicate readings talked about in the code block above
+# want to remove the duplicate readings shown in the code block above (dupes on primary key)
+# further analysis needed to see if readings differ among rows or if it's just dates. Initial analysis
+# indicates more work needed than just distinct row pull (still shows duplicate composite key counts for some rows)
 
 ```
 
@@ -304,13 +320,11 @@ quantile(vars_want$hamabot, prob = c(.05, .99))
 
 
 ```{r, identify-outliers-box-whisker}
-
+# visually display outliers
 boxplot(vars_want$humid_temp)
 boxplot(vars_want$hamatop)
 boxplot(vars_want$hamabot)
-
 ```
-
 
 
 ### (e bonus - discuss other possible outliers and explain reason why it is better to remove them than to keep)
@@ -330,6 +344,11 @@ boxplot(vars_want$hamabot)
 
 ***
 
+Idea List (things to investigate):
+-   is a tree sentient? Does the weather from the previous n days affect any of the measurement readings collected? For example, would a series of dry days show any humidity differences in or around the tree?
+-   Influence points. How much can the distributions be shifted by missing values (mentioned in article as future work). Does the missing data affect any of the findings?
+-   How does the collected data match up with any weather trends in the area? Maybe the tree had higher humidity rates for example than normal ground.
+
 ### (a) (Andrew)
 
 ### (b) (Andrew)
@@ -346,3 +365,41 @@ boxplot(vars_want$hamabot)
 ***
 
 ## 5 Graph Critique in the Paper
+### Log Transform of Histograms
+The incident and reflected PAR histograms from Tolle et al. (figure 3a) have long tails and with large numbers of observations around 0 which make the charts hard to discern. We present this data after taking a log transform of the observations and present the results side-by-side with the initial chart versions (non-log scale). 
+
+```{r, 5a-incident-charts}
+# incident PAR charts
+
+```
+
+
+```{r, 5a-better-value-plot}
+# log with freq counts
+ggplot(all, aes(log(incident_par))) +
+  geom_histogram(fill = "blue", binwidth = .1, color = "white") +
+  ggtitle("Log Transform - Incident PAR")
+
+# non-log plot with freq counts
+ggplot(all, aes(incident_par)) +
+  geom_histogram(fill = "blue", binwidth = 250, color = "white") +
+  ggtitle("No Log Transform - Incident PAR")
+
+# log with percentages
+ggplot(all, aes(x = log(incident_par))) +
+  geom_histogram(aes(y = (..count..)/sum(..count..)), binwidth = .1) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  ggtitle("Log Transform - Incident PAR (Percentage Scale)")
+
+
+# non-log with percentages
+ggplot(all, aes(x = incident_par)) +
+  geom_histogram(aes(y = (..count..)/sum(..count..)), binwidth = 250) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  ggtitle("No Log Transform - Incident PAR (Percentage Scale)")
+
+
+```
+
+
+
