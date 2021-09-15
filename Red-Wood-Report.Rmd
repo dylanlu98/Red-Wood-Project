@@ -6,6 +6,13 @@ output:
   html_document: default
 ---
 
+General Notes/To do:
+- PAR measurements are off, the units are flux. I'm not sure if we need to just scale the given values or do any manipulation. I think we should have our min/max match the table in the paper
+- Need to derive reflected PAR from direct PAR (just a ratio)
+- 
+
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
@@ -22,7 +29,6 @@ library(gridExtra) # for arranging plots
 ## 1 Data collection
 
 ### (a - Paper Summary)
-
 The purpose of the study is twofold: capture information about a single redwood tree canopy over time and provide a roadmap for future macroscopic studies using a multi-sensor network.
 
 The data was collected in Sonoma, California on a single Redwood tree over a period of days at consistent time intervals during the late spring/early summer.
@@ -51,7 +57,6 @@ The main difference between the files is that the scaling/precision on voltage m
 ***
 
 ## 2 Data cleaning
-
 ```{r, read-in-data, include=FALSE}
 all <- read.csv("sonoma-data-all.csv")
 log <- read.csv("sonoma-data-log.csv")
@@ -60,14 +65,12 @@ net <- read.csv("sonoma-data-net.csv")
 # metadata files
 dates <- read.table("sonoma-dates-formatted", sep=",", header = TRUE)   # losing some precision on epochDays
 
-
-# get unique key for all data - prompt indicates combo of these two fields
+# get unique key for all data - prompt indicates composite key with two fields
 primary_data_key <- unique(all[c("epoch", "nodeid")])
 ```
 
 ### (a - histograms of each variable in each file)
-
-```{r hist-of-variables}
+```{r, hist-of-variables}
 # add data source column indicating file source for direct hist comparison
 voltage_log_cutoff = max(log$voltage)
 all = all %>%
@@ -76,29 +79,64 @@ all = all %>%
     voltage <= voltage_log_cutoff ~ "log"
 ))
 
-
-# TODO:: will want to show the date range...paper lists range that's different from net file
-# want to show that net has duplicates using hist...use primary key
-
-
 # epoch plot showing network failure
 ggplot(all, aes(epoch, fill = data_source)) +
   geom_histogram(binwidth = 50) +
   ggtitle("Number of Entries by Epoch and Data Source ")
+```
+We see from above figure "Number of Entries by Epoch and Data Source" the range of epoch measurements and frequency are not consistent between the two data sources. Tolle cited wireless issues as potentially culprit as well as battery/memory capacity. 
 
+```{r, show-net-key-duplicates}
+# use primary composite key to plot duplicate readings by data source (same epoch and node id) there should only be one row per unique key in each data source
+# plot 1 showing the breakdown by frequency (n is the number of duplicated rows)
+all %>% 
+  group_by(epoch, nodeid, data_source) %>%
+  tally() %>%
+  filter(n > 1) %>%
+  ggplot(aes(n, fill = data_source)) +
+    geom_histogram(binwidth = 1) +
+    stat_bin(binwidth=1, geom="text", colour="black", size=3.5,
+           aes(label=..count.., group=data_source), position=position_stack(vjust=0.5)) +
+    ggtitle("Duplicate Entries by Data Source")
 
-# 
-ggplot(all, aes(nodeid, fill = data_source)) +
-  geom_histogram(binwidth = 50) +
-  ggtitle("Number of Entries by Epoch and Data Source ")
+# plot 2 showing number of measurements that have duplicated rows
+# summarize(sum(n)) adds the counts together and yields total duplicated rows
+all %>% 
+  group_by(epoch, nodeid, data_source) %>%
+  tally() %>%
+  filter(n > 1) %>%
+  group_by(data_source) %>% 
+  tally() %>%
+  ggplot(aes(x=data_source, y=n, fill = data_source)) +
+    geom_bar(stat = "identity") +
+    geom_text(aes(label=n), position=position_dodge(width=0.9), vjust=-0.25) +
+  ggtitle("Number of Measurements with Duplicated Readings")
+# Coment
+##  there might be some differences in the readings...will want to check that in addition to just the primary key duplication
+```
+We see in the above figure that there are duplicated measurement rows where the sensor recorded data multiple times for the same measurement interval. These duplicates should be removed before analysis.
 
+```{r, voltage-hist-range-issue}
 # voltage plot shows issue with units
 ggplot(all, aes(voltage, fill = data_source)) +
   geom_histogram(binwidth = 50) +
   ggtitle("Voltage Units Differs Across Data Source")
-
 ```
-```{r}
+Figure "Voltage Units Differs Across Data Sources" shows that the scale/units of voltage were not consistent between the two recording devices.
+
+
+```{r, par-derivation}
+# PAR Derivation Convert hamatop/hamabottom units
+par_calibration_factor = 0.0185 # https://edstem.org/us/courses/7965/discussion/571902
+all = all %>%
+  mutate(incident_par = hamatop * par_calibration_factor,
+         reflected_par = hamabot * par_calibration_factor
+  )
+```
+
+
+```{r, all-hist-plots, include=FALSE}
+# we need to add some text describing this if we want to keep it in report (i removed it). I think it's better to include in code file but not in write-up
 all %>%
   keep(is.numeric) %>% 
   gather() %>% 
@@ -107,18 +145,32 @@ all %>%
     geom_histogram()
 ```
 
-
 ### Which variable is not consistent?
-The scaling and/or precision of voltage is not consistent between the two sources. Network file voltage is several orders of magnitude greater (readings in the hundreds) than the same readings in the log file (readings in the single digits).
+The scaling and/or precision of voltage is not consistent between the two sources. Network file voltage is several orders of magnitude greater (readings in the hundreds) than the same readings in the log file (readings in the single digits). There are also large time gaps between the two files denoted by measurement count differences by epoch and data source as well as duplicated measurement rows.
 
 ### Convert the data to the same range. No code, but explain what we did?
-
 We transformed the voltage readings in the network file by dividing it by 100. Then we combined the transformed network file and log file to get all.2 file with consistent variables. 
-```{r}
+```{r, covert-voltage-range}
 net.2 = net %>%
   mutate(voltage = voltage / 100)
 all.2 = rbind(net.2, log)
-all.2
+
+######### andrew adjustment - alter voltage in existing structure or create new objects?
+# here i'm just altering in place
+all = all %>%
+  mutate(voltage = case_when(
+    data_source == 'net' ~ voltage / 100
+  ))
+
+all %>%
+  keep(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+    facet_wrap(~ key, scales = "free") + 
+    geom_histogram()
+
+######### end update
+
 all.2 %>%
   keep(is.numeric) %>% 
   gather() %>% 
@@ -127,23 +179,36 @@ all.2 %>%
     geom_histogram()
 ```
 
-
 ### (b - remove missing data)
 We removed all readings that were taken when the node's voltage was higher than 3 volts or lower than 2.4 volts. 143312 readings were removed. 
-```{r}
+```{r, remove-missing-data}
 all.2 %>% 
-  ggplot(aes(voltage)) + geom_histogram()
+  ggplot(aes(voltage)) + geom_histogram() + 
+  ggtitle("Voltage Frequency Before Adjustment")
+
 all.2 %>% 
   summary()
 quantile(all.2$voltage, prob = c(.35,.97))
+
 all.3 = all.2 %>%
   filter(voltage >= 2.4 & voltage <= 3)
+
 all.3 %>% 
-  ggplot(aes(voltage)) + geom_histogram()
+  ggplot(aes(voltage)) + geom_histogram() +
+  ggtitle("Voltage Frequency After Adjustment")
+
 nrow(all.2) - nrow(all.3)
 ```
+
+```{r, remove-duplicate-readings}
+# want to remove the duplicate readings talked about in the code block above
+
+```
+
+
+
 ### Comment on the number of missing measurements and the corresponding date/time period?
-There are 7568 row of readings containing at least a missing measurement. The missing measurements have corresponding date between May 25 to May 29 and at Nov 10.During May 25 to May 29, missing measurements occurred through out the day. Less errors occurred at noon while more errors occurred at night and in the early morning. In Nov 10, most error occurred at 14:25:00. 
+There are 7568 row of readings containing at least a missing measurement. The missing measurements have corresponding date between May 25 to May 29 and at Nov 10.During May 25 to May 29, missing measurements occurred throughout the day. Less errors occurred at noon while more errors occurred at night and in the early morning. In Nov 10, most error occurred at 14:25:00. 
 
 ```{r}
 all.4 = na.omit(all.3)
@@ -192,21 +257,32 @@ ggplot(missings.3, aes(x=result_time)) +
 
 ### (c - incorporate location data from other file)
 After we joined the location data, we have 15 variables.
-```{r}
+```{r, incorporate-location-data}
 locations <- read.table(file = "mote-location-data.txt", header = TRUE, sep = ",")
 colnames(locations)[1] = "nodeid"
 #Join data. Retain all rows in a that have a match in b.
+
+## AA: could we use inner_join?
 all.5 = left_join(all.4,locations, by = "nodeid")
 all.6 = na.omit(all.5)
 ```
 
+
+```{r, get-good-date-column}
+# timestamps from the raw data files don't match the actually record epoch...use the dates file to update
+all %>% 
+  inner_join(dates, by = c("epoch" = "epochNums")) %>%
+  select(-result_time) %>%
+  relocate(epochDates, epochDays)
+
+```
+
+
 ### (d - visually identify outliers for each of following: humidity, humid temp, hamatop, hamabot. Remove and comment on rationale for removing)
 We can remove all humidity reading < 21 which is less than the 1% quantile, humid_temp > 100 which is larger than the 99% quantile, maybe hamabot > 4000, which is larger than the 98% quantile.
-
-```{r}
+```{r, identify-outliers}
 
 vars_want = all.6[c("humidity","humid_temp","hamatop","hamabot")]
-  
 
 vars_want %>%
   keep(is.numeric) %>% 
@@ -216,12 +292,23 @@ vars_want %>%
     geom_histogram()
 
 ```
-```{r}
+
+```{r,identify-outliers-quantiles}
 quantile(vars_want$humidity, prob = c(.01,.95))
 quantile(vars_want$humid_temp, prob = c(.05, .95))
 quantile(vars_want$hamatop, prob = c(.05, .93))
 quantile(vars_want$hamabot, prob = c(.05, .99))
 ```
+
+Large amount of outliers for Hamatop
+```{r, identify-outliers-box-whisker}
+
+boxplot(vars_want$humid_temp)
+boxplot(vars_want$hamatop)
+boxplot(vars_want$hamabot)
+
+```
+
 
 
 ### (e bonus - discuss other possible outliers and explain reason why it is better to remove them than to keep)
@@ -249,6 +336,11 @@ quantile(vars_want$hamabot, prob = c(.05, .99))
 
 ### (d) (Andrew)
 
-```{r, Andrew}
-head(all)
-```
+*** 
+
+## 4 Interesting Findings
+
+
+***
+
+## 5 Graph Critique in the Paper
