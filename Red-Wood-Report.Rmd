@@ -19,6 +19,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(tidyverse)
 library(ggplot2)
 library(caret)
+library(reshape2)
 library(dplyr)
 library(purrr)
 library(lubridate) # for working with dates
@@ -275,7 +276,12 @@ locations <- read.table(file = "mote-location-data.txt", header = TRUE, sep = ",
 colnames(locations)[1] = "nodeid"
 #Join data. Retain all rows in a that have a match in b.
 
-## AA: could we use inner_join?
+### AA
+# this is dropping some records...not sure why
+all = inner_join(all, locations, by="nodeid")
+
+###
+
 all.5 = left_join(all.4,locations, by = "nodeid")
 all.6 = na.omit(all.5)
 ```
@@ -287,6 +293,12 @@ all = all %>%
   inner_join(dates, by = c("epoch" = "epochNums")) %>%
   select(-result_time) %>%
   relocate(epochDates, epochDays)
+
+
+# split up the new date field by space...want to keep the time
+all = all %>%
+  separate(epochDates, into = c('weekday', 'month', 'day', 'time', 'year'),
+           sep = " +")
 
 ```
 
@@ -410,11 +422,52 @@ ggplot(all, aes(x = log(reflected_par + 0.001))) +
 
 ```
 
-### 
-What message do the boxplots in Figure 3[c] and 3[d] try to convey? Do you think the plots convey the right messages? If not generate a new plot with the same data. Hint: compare to some plots in Figure 4.
+### Boxplot Analysis - Daytime Measurements Only
+
+![boxplot_3c](./images/3c_plot_pic.JPG)
+
+The boxplots from Figure 3[c] in the orginal paper are showing how the sensor measurements vary over the height of the tree. Tolle et al. are attempting to look for spatial gradients and trends by eliminating the temporal aspect of the data.
+
+With regards to the PAR charts I don't believe these plots convey the right message. I think the author should have split up the temporal ranges included in this chart. For example, the PAR temporal range should only include daytime, when the sun is shining. Including the full temporal range adds a large number of data points with 0 light readings and effectively pulls the mass closer to zero for all readings and makes the gradient less pronounced.
+
+We plotted the charts only considering daylight hours.
+
+```{r, q5b-height-value-box-plots}
+# try from 6:00 to 20:00
+day_time = all %>%
+  filter(time >= "06" & time <= "20")
+
+# fix formatting for incident par boxplot and impliment change for other dimensions (match paper)
+
+# temperature
+
+# humidity
+
+# incident par
+ggplot(day_time, aes(x=Height, y=incident_par, group = Height)) + 
+    geom_boxplot() +
+    coord_flip()
+
+# reflected par
+
+```
 
 
+Some statement here about how the gradients over height become more clear when we strip out the night time measurements.
 
+
+![boxplot_3d](./images/3d_plot_pic.JPG)
+
+
+### Tolle Figure 4 Plot Suggestions
+Any suggestions for improving the first two plots in Figure 4? Can you distinguish all the colors in these two plots?
+
+I think discretizing the time plot (maybe showing every hour) would make the content more digestiable. Both charts are also lacking a legend and leave the onus on the reader to discern which heights correspond to which colors. To more clearly show height gradient we believe using a two-color continuum (shortest to tallest) would more clearly display the trend similar to what the author did in Figure 5.
+
+### Tolle Figure 7 Comment
+Comment on Figure 7. Is it possible to generate a better visualization to highlight the difference between network and log data?
+
+We believe that overlaying the bar charts might create better contrast between the two sources. 
 
 
 ```{r}
