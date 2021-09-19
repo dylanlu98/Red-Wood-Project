@@ -2,8 +2,8 @@
 title: "Red Wood Data Analysis Report"
 author: "Andrew Amore, Dylan (Shi-Ting) Lu"
 output:
-  pdf_document: default
-  html_document: default
+  pdf_document:
+    fig_caption: true
 classoption:
 - twocolumn
 
@@ -29,14 +29,14 @@ library(gridExtra) # for arranging plots
 ```
 
 ## 1a Data Collection
-### (a - Paper Summary)
+### Paper Summary
 The purpose of the study is twofold: capture information about a single redwood tree canopy over time and provide a roadmap for future macroscopic studies using a multi-sensor network.
 
 The data was collected in Sonoma, California on a single Redwood tree over a period of days at consistent time intervals during the late spring/early summer.
 
 Based on this study, researchers were able to verify the existence of dynamic spatio-temporal gradients surrounding the tree and prove that complex biological theories can be validated using this measurement framework. Researchers highlighted lesson's learned, beneficial for future studies, highlighting sensor sensitivity based on positioning and yield issues from memory/network constraints.
 
-### (b - Data Collection)
+### Data Collection
 ### How are sensors deployed? 
 Nodes (sensor housing) were attached to the body of one redwood tree at various radial, angular, and vertical distances. At  roughly 2-meter spacing intervals the first sensor was placed 15m from ground level and the last sensor at 70m above ground level. The majority of nodes used in the analysis were placed on the west side of the tree about 0.1m - 1m from the tree trunk. Several nodes were placed outside of the measurement envelope to monitor readings in the immediate vicinity.
 
@@ -65,10 +65,8 @@ net <- read.csv("sonoma-data-net.csv")
 
 # metadata files
 dates <- read.table("sonoma-dates-formatted", sep=",", header = TRUE)   # losing some precision on epochDays
-
-# get unique key for all data - prompt indicates composite key with two fields
-primary_data_key <- unique(all[c("epoch", "nodeid")])
 ```
+
 
 ### (a - histograms of each variable in each file)
 ```{r, hist-of-variables}
@@ -79,27 +77,39 @@ all = all %>%
     voltage > voltage_log_cutoff ~ "net",
     voltage <= voltage_log_cutoff ~ "log"
 ))
-
-# epoch plot showing network failure
-ggplot(all, aes(epoch, fill = data_source)) +
-  geom_histogram(binwidth = 50) +
-  ggtitle("Number of Entries by Epoch and Data Source ")
 ```
-We see from above figure "Number of Entries by Epoch and Data Source" the range of epoch measurements and frequency are not consistent between the two data sources. Tolle cited wireless issues as potentially culprit as well as battery/memory capacity. 
 
-```{r, show-net-key-duplicates}
-# use primary composite key to plot duplicate readings by data source (same epoch and node id) there should only be one row per unique key in each data source
-# plot 1 showing the breakdown by frequency (n is the number of duplicated rows)
-all %>% 
-  group_by(epoch, nodeid, data_source) %>%
-  tally() %>%
-  filter(n > 1) %>%
-  ggplot(aes(n, fill = data_source)) +
-    geom_histogram(binwidth = 1) +
-    stat_bin(binwidth=1, geom="text", colour="black", size=3.5,
-           aes(label=..count.., group=data_source), position=position_stack(vjust=0.5)) +
-    ggtitle("Duplicate Entries by Data Source")
+```{r, network-failure, fig.cap = "Number of Entries by Epoch and Data Source"}
+# plot themes need work
+# epoch plot showing network failure
+ggplot(all, aes(x = epoch, color = data_source)) +
+  geom_histogram(binwidth = 150) +
+  # cosmetics
+  labs(x="Epoch", y="Frequency", color="Data Source") +
+  scale_color_brewer(palette="Spectral", labels=c("Logger", "Network"))
+```
 
+In Figure 1, the number of measurements recorded during each epoch is plotted for each data source: logger and network. Epoch range and record frequency are not consistent between the two, however, the distribution looks similar over the ranges where both have recorded data. The first network measurement occurs on epoch 2812 which corresponds to May 7th, almost 10 days after the experiment started. Tolle et al. cited packet drops and network related issues as potential culprit's to low network yield, but the data provided does not match the findings from Figure 7 in the original report. 
+
+```{r, voltage-hist-range-issue, fig.cap = "Voltage Histogram - Units Differ by Data Source"}
+# voltage plot shows issue with units
+ggplot(all, aes(voltage, color = data_source, fill = data_source)) +
+  geom_histogram(binwidth = 50) +
+  
+  labs(x="Voltage", y="Frequency", color="Data Source") +
+  scale_color_brewer(palette="Spectral", labels=c("Logger", "Network"))+
+  scale_fill_brewer(palette="Spectral", labels=c("Logger", "Network"))
+```
+Voltage units are not consistent across the two sources. Figure 2 plots the comparison and illustrates the scaling difference. The network voltage is several orders of magnitude greater than readings in the logger source. Voltage readings from the network source were divided by 100 to match the logger voltage units.
+
+Hamatop and hamabot dimensions were converted to match the PAR units in the original paper, but values were consistent across sources.
+
+$$ \text{Incident PAR} = hamatop*0.0185 $$
+$$ \text{Reflected PAR} = hamabot *0.0185 $$
+
+Each record, unique to each data source, has a composite key identifier: nodeid and epoch. Figure 3 shows the number of nodeid/epoch combinations that appear more than once in the dataset. 
+
+```{r, show-net-key-duplicates, fig.cap = "Number of (Epoch, Nodeid) Duplicated Entries by Data Source"}
 # plot 2 showing number of measurements that have duplicated rows
 # summarize(sum(n)) adds the counts together and yields total duplicated rows
 all %>% 
@@ -107,27 +117,85 @@ all %>%
   tally() %>%
   filter(n > 1) %>%
   group_by(data_source) %>% 
-  tally() %>%
+  tally() %>%   # summarize(sum(n)) (sums )
   ggplot(aes(x=data_source, y=n, fill = data_source)) +
-    geom_bar(stat = "identity") +
+    geom_bar(stat = "identity") + 
     geom_text(aes(label=n), position=position_dodge(width=0.9), vjust=-0.25) +
-  ggtitle("Number of Measurements with Duplicated Composite Keys (Epoch, NodeID)")
-
-##  there might be some differences in the readings...will want to check that in addition to just the primary key duplication
+    # cosmetics
+    labs(x="Data Source", y="Record Count", color="Data Source") +
+    theme(legend.position = "none") +
+    scale_color_brewer(palette="Spectral")
 ```
-We see in the above figure that there are duplicated measurement rows where the sensor recorded data multiple times for the same measurement interval. These duplicates should be removed before analysis.
 
-```{r, voltage-hist-range-issue}
-# voltage plot shows issue with units
-ggplot(all, aes(voltage, fill = data_source)) +
-  geom_histogram(binwidth = 50) +
-  ggtitle("Voltage Units Differs Across Data Source")
+Out of this duplicate subset how many are unique entries? A unique entry indicates some dimension doesn't match between the duplicate rows and could indicate a faulty sensor or measurement reading. Measures were averaged for the nodeid/epoch entries identified as distinct duplicates. 
+![Some Examples of Distinct Duplicate Rows. Note Value Differences](./images/dupe_row.JPG)
+
+```{r, dupe-rows-by-nodeid}
+# data frame of the duplicates 
+duplicate_entries = all %>% 
+                      group_by(epoch, nodeid, data_source) %>%
+                      tally() %>%
+                      filter(n > 1) %>% select(epoch, nodeid, data_source) %>%
+                      inner_join(all)
+
+# how many are unique entries?
+non_dist =  nrow(duplicate_entries) - nrow(distinct(duplicate_entries))
+dist = nrow(distinct(duplicate_entries))
+count_difference = data.frame(group = c("Non-Distinct", "Distinct"), value = c(non_dist, dist))
+
+# plot in pie chart (maybe we could somehow include the overall sample size here)
+ggplot(count_difference, aes(x="", y=value, fill=group)) +
+  geom_bar(width = 1, stat = "identity") + 
+  geom_text(aes(label = value),
+            position = position_stack(vjust = 0.5)) +
+  coord_polar("y", start=0)  + scale_fill_brewer(palette="Blues")+
+  theme_minimal()
 ```
-Figure "Voltage Units Differs Across Data Sources" shows that the scale/units of voltage were not consistent between the two recording devices.
+```{r, remove-duplicate-readings}
+# take an average across all measures for subset that varies across composite keys.
+# (voltage, depth, humidity, humid_temp, humid_adj, hamatop, hamabot)
+dupes_dis = distinct(duplicate_entries)   # 22,587 composite key
+
+# store the new values in dupe_dis and append it to all
+dupe_dis = dupes_dis %>% 
+  group_by(epoch, nodeid, data_source) %>% 
+  summarize(mean_voltage = mean(voltage), 
+            mean_depth = mean(depth),
+            mean_humidity = mean(humidity),
+            mean_humid_temp = mean(humid_temp),
+            mean_humid_adj = mean(humid_adj),
+            mean_hamatop = mean(hamatop),
+            mean_hamabot = mean(hamabot),
+            .groups = 'drop'
+            ) %>%
+  inner_join(dupes_dis) %>%
+  select(epoch, nodeid, mean_voltage, mean_depth, mean_humidity, mean_humid_temp, mean_humid_adj, mean_hamatop, mean_hamabot, data_source) %>%
+  rename(voltage = mean_voltage,
+         depth = mean_depth,
+         humidity = mean_humidity,
+         humid_temp = mean_humid_temp,
+         humid_adj = mean_humid_adj,
+         hamatop = mean_hamatop,
+         hamabot = mean_hamabot) %>% 
+  distinct() %>%
+  add_column(result_time = "", .before = "epoch") %>%
+  add_column(parent = NA, .before = "voltage")
+  
+
+# adjust all...only include single entries
+all = all %>% 
+    group_by(epoch, nodeid, data_source) %>%
+    tally() %>%
+    filter(n == 1) %>% select(epoch, nodeid, data_source) %>%
+    inner_join(all)
+
+# union the new duplicate values
+all = union(all, dupe_dis)
+```
 
 
-```{r, par-derivation}
-# PAR Derivation Convert hamatop/hamabottom units
+```{r, unit-conversion}
+# PAR unit conversion - hamatop/hamabottom units
 par_calibration_factor = 0.0185 # https://edstem.org/us/courses/7965/discussion/571902
 all = all %>%
   mutate(incident_par = hamatop * par_calibration_factor,
@@ -137,153 +205,13 @@ all = all %>%
 # set all NAs to 0 
 all$incident_par[is.na(all$incident_par)] = 0
 all$reflected_par[is.na(all$reflected_par)] = 0
-```
 
-
-```{r, all-hist-plots, include=FALSE}
-# we need to add some text describing this if we want to keep it in report (i removed it). I think it's better to include in code file but not in write-up
-all %>%
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) + 
-    facet_wrap(~ key, scales = "free") + 
-    geom_histogram()
-```
-
-### Which variable is not consistent?
-The scaling and/or precision of voltage is not consistent between the two sources. Network file voltage is several orders of magnitude greater (readings in the hundreds) than the same readings in the log file (readings in the single digits). There are also large time gaps between the two files denoted by measurement count differences by epoch and data source as well as duplicated measurement rows.
-
-### Convert the data to the same range. No code, but explain what we did?
-We transformed the voltage readings in the network file by dividing it by 100. Then we combined the transformed network file and log file to get all.2 file with consistent variables.
-
-```{r, covert-voltage-range}
-net.2 = net %>%
-  mutate(voltage = voltage / 100)
-all.2 = rbind(net.2, log)
-
-######### AA: alter voltage in existing structure or create new objects?
+# voltage unit conversion
 all = all %>%
   mutate(voltage = case_when(
     data_source == 'net' ~ voltage / 100,
     TRUE ~ voltage
   ))
-
-all %>%
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) + 
-    facet_wrap(~ key, scales = "free") + 
-    geom_histogram()
-
-######### 
-
-all.2 %>%
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) + 
-    facet_wrap(~ key, scales = "free") + 
-    geom_histogram()
-```
-
-### (b - remove missing data)
-We removed all readings that were taken when the node's voltage was higher than 3 volts or lower than 2.4 volts. 143312 readings were removed. 
-
-```{r, remove-missing-data}
-all.2 %>% 
-  ggplot(aes(voltage)) + geom_histogram() + 
-  ggtitle("Voltage Frequency Before Adjustment")
-
-#all.2 %>% 
-#  summary()
-#quantile(all.2$voltage, prob = c(.35,.97))
-
-all.3 = all.2 %>%
-  filter(voltage >= 2.4 & voltage <= 3)
-
-######### AA adjustment to dataframe in place
-all = all %>%
-  filter(voltage >= 2.4 & voltage <= 3)
-######### 
-
-
-all.3 %>% 
-  ggplot(aes(voltage)) + geom_histogram() +
-  ggtitle("Voltage Frequency After Adjustment")
-
-nrow(all.2) - nrow(all.3)
-```
-
-```{r, remove-duplicate-readings}
-# want to remove the duplicate readings shown in the code block above (dupes on primary key)
-# further analysis needed to see if readings differ among rows or if it's just dates. Initial analysis
-# indicates more work needed than just distinct row pull (still shows duplicate composite key counts for some rows)
-
-```
-
-
-### Comment on the number of missing measurements and the corresponding date/time period?
-There are 7568 row of readings containing at least a missing measurement. The missing measurements have corresponding date between May 25 to May 29 and at Nov 10.During May 25 to May 29, missing measurements occurred throughout the day. Less errors occurred at noon while more errors occurred at night and in the early morning. In Nov 10, most error occurred at 14:25:00. 
-
-```{r}
-all.4 = na.omit(all.3)
-missings = all.3[rowSums(is.na(all.3)) > 0, ]
-#summary(missings)
-missings.2 <- missings
-missings.2$result_time <-as.Date(missings.2$result_time)
-hist(missings.2$result_time, breaks = "months")
-
-missings.3 = missings
-missings.3$result_time <-ymd_hms(missings.3$result_time)
-missings.3 %>% ggplot(aes(result_time, ..count..)) + 
-    geom_histogram() +
-    theme_bw() + xlab(NULL) +
-    scale_x_datetime(breaks = date_breaks("3 months"), )
-
-par(mfrow=c(3,3))
-# 25
-ggplot(missings.3, aes(x=result_time)) + 
-  geom_histogram() +
-  scale_x_datetime(limits = c(ymd_hms("2004-05-25 00:00:01"),ymd_hms("2004-05-25 23:59:59")))
-
-# 26
-ggplot(missings.3, aes(x=result_time)) + 
-  geom_histogram() +
-  scale_x_datetime(limits = c(ymd_hms("2004-05-26 00:00:01"),ymd_hms("2004-05-26 23:59:59")))
-# 27
-ggplot(missings.3, aes(x=result_time)) + 
-  geom_histogram() +
-  scale_x_datetime(limits = c(ymd_hms("2004-05-27 00:00:01"),ymd_hms("2004-05-27 23:59:59")))
-# 28
-ggplot(missings.3, aes(x=result_time)) + 
-  geom_histogram() +
-  scale_x_datetime(limits = c(ymd_hms("2004-05-28 00:00:01"),ymd_hms("2004-05-28 23:59:59")))
-# 29
-ggplot(missings.3, aes(x=result_time)) + 
-  geom_histogram() +
-  scale_x_datetime(limits = c(ymd_hms("2004-05-29 00:00:01"),ymd_hms("2004-05-29  23:59:59")))
-
-#11-10
-ggplot(missings.3, aes(x=result_time)) + 
-  geom_histogram() +
-  scale_x_datetime(limits = c(ymd_hms("2004-11-10 00:00:01"),ymd_hms("2004-11-10 23:59:59")))
-```
-
-
-### (c - incorporate location data from other file)
-After we joined the location data, we have 15 variables.
-```{r, incorporate-location-data}
-locations <- read.table(file = "mote-location-data.txt", header = TRUE, sep = ",")
-colnames(locations)[1] = "nodeid"
-#Join data. Retain all rows in a that have a match in b.
-
-### AA
-# this is dropping some records...not sure why
-all = inner_join(all, locations, by="nodeid")
-
-###
-
-all.5 = left_join(all.4,locations, by = "nodeid")
-all.6 = na.omit(all.5)
 ```
 
 
@@ -294,69 +222,121 @@ all = all %>%
   select(-result_time) %>%
   relocate(epochDates, epochDays)
 
-
 # split up the new date field by space...want to keep the time
 all = all %>%
   separate(epochDates, into = c('weekday', 'month', 'day', 'time', 'year'),
            sep = " +")
+```
+
+```{r, remove-voltage-errors}
+voltage_removed = all %>%
+  filter(voltage > 3 | voltage < 2.4)
+
+all = all %>%
+  filter(voltage >= 2.4 & voltage <= 3)
+```
+
+### (b - remove missing data)
+There are a large number of entries with completely missing measurement data.
+```{r, remove-na-values}
+test = all %>% filter(is.na(humid_temp) & is.na(humidity) & is.na(humid_temp) & is.na(hamatop) & is.na(hamabot))
+
+
+
 
 ```
+
+
+Duplicates and entries with readings greater than 3V or lower than 2.4V were removed following procedure outlined in Tolle paper. Table XX lists the record count after each removal step.
+
+**Data Removal Step**    **Record Count**   **Net Change**
+---------------------   -----------------   --------------
+Ingestion               416,036             0
+Duplicate Removal       393,213             -22,823
+Voltage Removal         264,144             -129,096
+------------------      -----------------   --------------
+
+### Comment on the number of missing measurements and the corresponding date/time period?
+The time of day for the missing measurements (voltage only) appears uniform across the 24 hour range the sensors were active. Over the course of the experiment we see more missing measurements as the experiment goes on, which would correspond with the battery issue mentioned in the paper. We also see a fair amount of logger failures at the beginning of the experiment.
+
+
+```{r, distibution-of-missing-measurements}
+# time of day
+ggplot(voltage_removed, aes(time)) +
+    geom_bar(aes(fill = data_source)) +
+    ggtitle("Time of Day - Missing Measurements")
+
+# day
+voltage_removed$date_concat = 
+  as.Date(paste(voltage_removed$year, voltage_removed$month, voltage_removed$day), "%Y %b %d")
+
+ggplot(voltage_removed, aes(date_concat)) +
+    geom_bar(aes(fill = data_source)) +
+    ggtitle("Day - Missing Measurements") +
+    scale_x_date(breaks = scales::breaks_pretty(13))
+```
+
+
+
+### (c - incorporate location data from other file)
+After we joined the location data, we have 15 variables.
+```{r, incorporate-location-data}
+locations <- read.table(file = "mote-location-data.txt", header = TRUE, sep = ",")
+colnames(locations)[1] = "nodeid"
+
+# this is dropping some records...not sure why
+all = left_join(all, locations, by="nodeid")
+```
+
 
 
 ### (d - visually identify outliers for each of following: humidity, humid temp, hamatop, hamabot. Remove and comment on rationale for removing)
 We can remove all humidity reading < 21 which is less than the 1% quantile, humid_temp > 100 which is larger than the 99% quantile, maybe hamabot > 4000, which is larger than the 98% quantile.
 
 ```{r, identify-outliers}
-vars_want = all.6[c("humidity","humid_temp","hamatop","hamabot")]
+vars_want = all[c("humidity","humid_temp","incident_par","reflected_par")]
 
 vars_want %>%
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) + 
-    facet_wrap(~ key, scales = "free") + 
+  keep(is.numeric) %>%
+  gather() %>%
+  ggplot(aes(value)) +
+    facet_wrap(~ key, scales = "free") +
     geom_histogram()
 
+# boxplots - use quantile function to remove
+boxplot(all$humid_temp, main = "humid temp")
+boxplot(all$humidity, main = "humidity")
+boxplot(all$incident_par, main = "Incident PAR")
+boxplot(all$reflected_par, main = "Reflected PAR")
+
+#quantile(all$humidity, prob = c(.01,.95))
+
+quantile(all$humid_temp, prob= c(0.25, 0.95))
+
 ```
 
-```{r,identify-outliers-quantiles}
-quantile(vars_want$humidity, prob = c(.01,.95))
-quantile(vars_want$humid_temp, prob = c(.05, .95))
-quantile(vars_want$hamatop, prob = c(.05, .93))
-quantile(vars_want$hamabot, prob = c(.05, .99))
-```
-
-
-```{r, identify-outliers-box-whisker}
-# visually display outliers
-# boxplot(vars_want$humid_temp)
-# boxplot(vars_want$hamatop)
-# boxplot(vars_want$hamabot)
-```
 
 
 ### (e bonus - discuss other possible outliers and explain reason why it is better to remove them than to keep)
-
+Duplication issue. NaN issue (all rows are blank).
 
 ***
 
 ## 3 Data Exploration
+### (a)
+```{r, pairwise-scatterplots}
+# "humidity","humid_temp","incident_par","reflected_par"
+all %>%
+  filter(time >= "06" & time <= "12")
 
-### (a) (Dylan)
+ggplot(all %>% filter(time >= "06" & time <= "12"), aes(x=humid_temp, y=humidity) ) +
+  geom_point() +
+  ggtitle("Humidity vs. Temperature - 6:00 to 12:00")
 
-### (b) (Dylan)
+ggplot()
 
-### (c) (Dylan)
+```
 
-### (d) (Dylan)
-
-***
-
-Idea List (things to investigate):
--   is a tree sentient? Does the weather from the previous n days affect any of the measurement readings collected? For example, would a series of dry days show any humidity differences in or around the tree?
--   Influence points. How much can the distributions be shifted by missing values (mentioned in article as future work). Does the missing data affect any of the findings?
--   How does the collected data match up with any weather trends in the area? Maybe the tree had higher humidity rates for example than normal ground.
-
-### (a) (Andrew)
 
 ### (b) (Andrew)
 
@@ -367,7 +347,10 @@ Idea List (things to investigate):
 *** 
 
 ## 4 Interesting Findings
-
+Idea List (things to investigate):
+-   is a tree sentient? Does the weather from the previous n days affect any of the measurement readings collected? For example, would a series of dry days show any humidity differences in or around the tree?
+-   Influence points. How much can the distributions be shifted by missing values (mentioned in article as future work). Does the missing data affect any of the findings?
+-   How does the collected data match up with any weather trends in the area? Maybe the tree had higher humidity rates for example than normal ground.
 
 ***
 
@@ -424,7 +407,7 @@ ggplot(all, aes(x = log(reflected_par + 0.001))) +
 
 ### Boxplot Analysis - Daytime Measurements Only
 
-![boxplot_3c](./images/3c_plot_pic.JPG)
+![Original Tolle Boxplots - 3c](./images/3c_plot_pic.JPG)
 
 The boxplots from Figure 3[c] in the orginal paper are showing how the sensor measurements vary over the height of the tree. Tolle et al. are attempting to look for spatial gradients and trends by eliminating the temporal aspect of the data.
 
@@ -437,7 +420,7 @@ We plotted the charts only considering daylight hours.
 day_time = all %>%
   filter(time >= "06" & time <= "20")
 
-# fix formatting for incident par boxplot and impliment change for other dimensions (match paper)
+# fix formatting for incident par boxplot and implement change for other dimensions (match paper)
 
 # temperature
 
@@ -456,7 +439,7 @@ ggplot(day_time, aes(x=Height, y=incident_par, group = Height)) +
 Some statement here about how the gradients over height become more clear when we strip out the night time measurements.
 
 
-![boxplot_3d](./images/3d_plot_pic.JPG)
+![Original Tolle Boxplots - 3d](./images/3d_plot_pic.JPG)
 
 
 ### Tolle Figure 4 Plot Suggestions
@@ -470,8 +453,51 @@ Comment on Figure 7. Is it possible to generate a better visualization to highli
 We believe that overlaying the bar charts might create better contrast between the two sources. 
 
 
+## Appendix
+
+Extra Charts:
+
+Duplicate record chart
+```{r, duplicate-entries-by-source, include=FALSE}
+# use primary composite key to plot duplicate readings by data source (same epoch and node id) there should only be one row per unique key in each data source
+# plot 1 showing the breakdown by frequency (n is the number of duplicated rows)
+all %>% 
+  group_by(epoch, nodeid, data_source) %>%
+  tally() %>%
+  filter(n > 1) %>%
+  ggplot(aes(n, fill = data_source)) +
+    geom_histogram(binwidth = 1) +
+    stat_bin(binwidth=1, geom="text", colour="black", size=3.5,
+           aes(label=..count.., group=data_source), position=position_stack(vjust=0.5)) +
+    ggtitle("Duplicate Entries by Data Source")
+```
+
+
+Histogram plots of all variables
+```{r, all-hist-plots, include=FALSE}
+# plot histograms of all numeric values
+all %>%
+  keep(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) + 
+    facet_wrap(~ key, scales = "free") + 
+    geom_histogram()
+```
+
+
 ```{r}
-#DEV CHUNK
+#DEV CHUNKs
+
+
+# validation that duplicate_entries has the right number of duplicates 
+# all %>%
+#   group_by(epoch, nodeid, data_source) %>%
+#   tally() %>%
+#   filter(n > 1) %>%
+#   group_by(data_source) %>%
+#   summarize(sum(n))
+
+
 # # log with freq counts
 # ggplot(all, aes(log(incident_par))) +
 #   geom_histogram(fill = "blue", binwidth = .1, color = "white") +
@@ -496,5 +522,48 @@ We believe that overlaying the bar charts might create better contrast between t
 #   ggtitle("No Log Transform - Incident PAR (Percentage Scale)")
 ```
 
-
+Dylan Date Code
+```{r}
+# all.4 = na.omit(all.3)
+# missings = all.3[rowSums(is.na(all.3)) > 0, ]
+# #summary(missings)
+# missings.2 <- missings
+# missings.2$result_time <-as.Date(missings.2$result_time)
+# hist(missings.2$result_time, breaks = "months")
+# 
+# missings.3 = missings
+# missings.3$result_time <-ymd_hms(missings.3$result_time)
+# missings.3 %>% ggplot(aes(result_time, ..count..)) +
+#     geom_histogram() +
+#     theme_bw() + xlab(NULL) +
+#     scale_x_datetime(breaks = date_breaks("3 months"), )
+# 
+# par(mfrow=c(3,3))
+# # 25
+# ggplot(missings.3, aes(x=result_time)) +
+#   geom_histogram() +
+#   scale_x_datetime(limits = c(ymd_hms("2004-05-25 00:00:01"),ymd_hms("2004-05-25 23:59:59")))
+# 
+# # 26
+# ggplot(missings.3, aes(x=result_time)) +
+#   geom_histogram() +
+#   scale_x_datetime(limits = c(ymd_hms("2004-05-26 00:00:01"),ymd_hms("2004-05-26 23:59:59")))
+# # 27
+# ggplot(missings.3, aes(x=result_time)) +
+#   geom_histogram() +
+#   scale_x_datetime(limits = c(ymd_hms("2004-05-27 00:00:01"),ymd_hms("2004-05-27 23:59:59")))
+# # 28
+# ggplot(missings.3, aes(x=result_time)) +
+#   geom_histogram() +
+#   scale_x_datetime(limits = c(ymd_hms("2004-05-28 00:00:01"),ymd_hms("2004-05-28 23:59:59")))
+# # 29
+# ggplot(missings.3, aes(x=result_time)) +
+#   geom_histogram() +
+#   scale_x_datetime(limits = c(ymd_hms("2004-05-29 00:00:01"),ymd_hms("2004-05-29  23:59:59")))
+# 
+# #11-10
+# ggplot(missings.3, aes(x=result_time)) +
+#   geom_histogram() +
+#   scale_x_datetime(limits = c(ymd_hms("2004-11-10 00:00:01"),ymd_hms("2004-11-10 23:59:59")))
+```
 
