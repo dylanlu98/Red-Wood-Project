@@ -357,6 +357,8 @@ Duplication issue. NaN issue (all rows are blank).
 ### (a)
 We decided to look at two distinct time periods, sunrise and sunset, as we belived they presented the most dynamic conditions to explore potential correlations. Would correlations observed during one event also manifest during the other? Researching sunrise and sunset times in Sonoma, CA lead us to select 5-hour intervals encompassing both astrological events.
 
+source: https://sunrise-sunset.org/us/sonoma-ca/2004/6
+
 **Astrological Event**    **Start Time**      **End Time**
 ---------------------     --------------      --------------
 Sunrise                   5:00am              10:00am           
@@ -426,20 +428,69 @@ ggplot(sunset, aes(x=incident_par, y=Height) ) +
   geom_point() +
   ggtitle("Height vs. Incident PAR - Sunset")
 
-
 rm(sunrise)
 rm(sunset)
-
 ```
 
 Describe findings from the charts.
 
 
 ### (b) Any predictors associated with Incident PAR. If so explain the relationship.
-Humidity and temperature are good predictors of Incident PAR.
+Temperature appears to be good predictor of incident PAR. We saw positive correlations between the two variables during both time frames.
+
+Humidity displayed a negative correlation with incident PAR which is more prenounced during the sunset window.
+
+### (c) Value as Time Series
+
+```{r, time-series-plots}
+# value vs. time with height as color cue
+# day plots are required bare minimum
+# (Temperature, Relative Humidity, Incident PAR and Reflected PAR)
+
+# convert day
+all$date_concat =
+  as.Date(paste(all$year, all$month, all$day), "%Y %b %d")
+
+# try and bin heights (looking at distinct)
+all = all %>% 
+  mutate(height_class = case_when(
+   Height <= 20 ~ "10 - 20 m",
+   Height > 20 & Height <= 30 ~ "20 - 30 m",
+   Height > 30 & Height <= 40 ~ "30 - 40 m",
+   Height > 40 & Height <= 50 ~ "40 - 50 m",
+   Height > 50 & Height <= 60 ~ "50 - 60 m",
+   Height > 60  ~ ">60 m"))
 
 
-### (c) 
+# Temperature
+ggplot(all, aes(x = date_concat, y = humid_temp, colour = height_class)) +
+    geom_line() +
+    ggtitle("Temperature vs. Time") +
+    scale_x_date(breaks = scales::breaks_pretty(13))
+
+
+# Humidity
+ggplot(all, aes(x = date_concat, y = humidity, colour = height_class)) +
+    geom_line() +
+    ggtitle("Humidity vs. Time") +
+    scale_x_date(breaks = scales::breaks_pretty(13))
+
+# Incident PAR
+ggplot(all, aes(x = date_concat, y = incident_par, colour = height_class)) +
+    geom_line() +
+    ggtitle("Incident PAR vs. Time") +
+    scale_x_date(breaks = scales::breaks_pretty(13))
+
+# Reflected PAR
+ggplot(all, aes(x = date_concat, y = reflected_par, colour = height_class)) +
+    geom_line() +
+    ggtitle("Reflected PAR vs. Time") +
+    scale_x_date(breaks = scales::breaks_pretty(13))
+
+
+```
+
+
 
 ### (d) PCA Analysis & Scree Plot
 
