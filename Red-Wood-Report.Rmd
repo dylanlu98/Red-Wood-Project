@@ -253,7 +253,7 @@ Duplicates and entries with readings greater than 3V or lower than 2.4V were rem
 Ingestion               416,036             0
 Duplicate Removal       393,213             -22,823
 Voltage Removal         264,144             -129,096
-Drop NAs                262,952
+Drop NAs                256,628             -7,516
 ------------------      -----------------   --------------
 
 ### Comment on the number of missing measurements and the corresponding date/time period?
@@ -291,17 +291,39 @@ all = left_join(all, locations, by="nodeid")
 
 
 ### (d - visually identify outliers for each of following: humidity, humid temp, hamatop, hamabot. Remove and comment on rationale for removing)
-We can remove all humidity reading < 21 which is less than the 1% quantile, humid_temp > 100 which is larger than the 99% quantile, maybe hamabot > 4000, which is larger than the 98% quantile.
+Tolle mentioned two outlier related issues corresponding to humidity measurements: %RH greater than 100% and one node failing to track other measured values. 
+
+We observed similar problems in our dataset. Visually inspecting the histogram we see a number of readings over 100%, clearly indicating a problem. Measurements corresponding to these readings were excluded from analysis.
+
+Plotting individual nodes over time we identified nodeid 123 as the problem node (not tracking other readings) which starts to occur around epoch 5000. All sensor readings after this epoch were removed.
+
+Visually inspecting temperature, we see a large number of outliers in the boxplot. A quick google search for hottest recorded temperature in Sonoma, CA is 44 degrees Celsius. All measurements greater than this cutoff were removed which deviates slightly from max value Tolle includes in final paper.
 
 ```{r, identify-outliers}
-vars_want = all[c("humidity","humid_temp","incident_par","reflected_par")]
+# raw histograms
+all %>%
+ ungroup() %>%
+ select(humidity, humid_temp, incident_par, reflected_par, .group = ) %>%
+ keep(is.numeric) %>%
+ gather() %>%
+ ggplot(aes(value)) +
+   facet_wrap(~ key, scales = "free") +
+   geom_histogram()
 
-vars_want %>%
-  keep(is.numeric) %>%
-  gather() %>%
-  ggplot(aes(value)) +
-    facet_wrap(~ key, scales = "free") +
-    geom_histogram()
+# remove readings with humidity > 100%
+# this will remove all sensor readings...might only want to set to NA so other dimensions remain intact
+all = all %>% filter(humidity <= 100)
+
+
+# paper mentions one node not tracking humidity with others i think nodeid 123
+all %>% filter(nodeid == 119 | nodeid == 123) %>%
+ggplot(aes(x = epoch, y = humidity, color = nodeid)) +
+  geom_line() +
+  scale_color_gradientn(colours=rainbow(2)) +
+  ggtitle("Node 119 and 123 Humidity Plots over Epoch")
+
+# remove node 123 and epoch > 5000
+all = all %>% filter((nodeid == 123 & epoch <= 5000) | (nodeid != 123))
 
 # boxplots - use quantile function to remove
 boxplot(all$humid_temp, main = "humid temp")
@@ -309,11 +331,19 @@ boxplot(all$humidity, main = "humidity")
 boxplot(all$incident_par, main = "Incident PAR")
 boxplot(all$reflected_par, main = "Reflected PAR")
 
+# remove measurements based on temperature cutoff
+# temp < 44
+all = all %>% filter(humid_temp < 44)
 
-quantile(all$humid_temp, prob= c(0.01, 0.99))
-quantile(all$humidity, prob= c(0.01, 0.99))
-quantile(all$incident_par, prob= c(0.01, 0.99))
-quantile(all$reflected_par, prob= c(0.01, 0.99))
+boxplot(all$humid_temp, main = "humid temp - outliers removed")
+
+## interquartile range - prompt says to visually inspect
+# IQ_humid_temp = quantile(all$humid_temp, prob= c(0.01, 0.25, 0.75, 0.99))
+# IQR = IQ_humid_temp["75%"] - IQ_humid_temp["25%"]
+# 
+# IQ_humidity = quantile(all$humidity, prob= c(0.01, 0.25, 0.75, 0.99))
+# IQ_incident_par = quantile(all$incident_par, prob= c(0.01, 0.25, 0.75, 0.99))
+# IQ_reflected_par = quantile(all$reflected_par, prob= c(0.01, 0.25, 0.75, 0.99))
 ```
 
 
@@ -325,26 +355,89 @@ Duplication issue. NaN issue (all rows are blank).
 
 ## 3 Data Exploration
 ### (a)
+We decided to look at two distinct time periods, sunrise and sunset, as we belived they presented the most dynamic conditions to explore potential correlations. Would correlations observed during one event also manifest during the other? Researching sunrise and sunset times in Sonoma, CA lead us to select 5-hour intervals encompassing both astrological events.
+
+**Astrological Event**    **Start Time**      **End Time**
+---------------------     --------------      --------------
+Sunrise                   5:00am              10:00am           
+Sunset                    4:00pm              9:00pm
+---------------------     --------------      --------------
+
 ```{r, pairwise-scatterplots}
 # "humidity","humid_temp","incident_par","reflected_par"
-all %>%
-  filter(time >= "06" & time <= "12")
 
-ggplot(all %>% filter(time >= "06" & time <= "12"), aes(x=humid_temp, y=humidity) ) +
+## only want one measurement per distinct time period, irrespective of the source...
+## perform something similar to the dupe check above
+
+# grab distinct time intervals
+sunrise = all %>% filter(time >= "05:00" & time <= "10")
+sunset = all %>% filter(time >= "16" & time <= "21")
+
+ggcorr(all[c("humidity","humid_temp","incident_par", "reflected_par")], method = c("everything", "pearson")) +
+  labs(title = "Correlation Map - All Time Periods")
+ggcorr(sunrise[c("humidity","humid_temp","incident_par", "reflected_par")], method = c("everything", "pearson")) +
+  labs(title = "Correlation Map - Sunrise")
+ggcorr(sunset[c("humidity","humid_temp","incident_par", "reflected_par")], method = c("everything", "pearson")) +
+  labs(title = "Correlation Map - Sunset")
+
+########### Sunrise charts - 5:00am to 10:00am
+## value dimension only
+ggplot(sunrise, aes(x=humid_temp, y=humidity) ) +
   geom_point() +
-  ggtitle("Humidity vs. Temperature - 6:00 to 12:00")
+  ggtitle("Humidity vs. Temperature - Sunrise")
 
-ggplot(all %>% filter(time >= "06" & time <= "18"), aes(x=incident_par, y=humidity) ) +
+ggplot(sunrise, aes(x=incident_par, y=humidity) ) +
   geom_point() +
-  ggtitle("Humidity vs. Incident PAR - 6:00 to 18:00")
+  ggtitle("Humidity vs. Incident PAR - Sunrise")
+
+ggplot(sunrise, aes(x=incident_par, y=humid_temp) ) +
+  geom_point() +
+  ggtitle("Temperature vs. Incident PAR - Sunrise")
+
+ggplot(sunrise, aes(x=incident_par, y=reflected_par) ) +
+  geom_point() +
+  ggtitle("Reflected PAR vs. Incident PAR - Sunrise")
+
+## height
+ggplot(sunrise, aes(x=incident_par, y=Height) ) +
+  geom_point() +
+  ggtitle("Height vs. Incident PAR - Sunrise")
 
 
-ggcorr(all[c("humidity","humid_temp","incident_par", "reflected_par")], method = c("everything", "pearson"))
+########### Sunset charts - 4:00pm to 9:00pm (16:00 - 21:00)
+ggplot(sunset, aes(x=humid_temp, y=humidity) ) +
+  geom_point() +
+  ggtitle("Humidity vs. Temperature - Sunset")
+
+ggplot(sunset, aes(x=incident_par, y=humidity) ) +
+  geom_point() +
+  ggtitle("Humidity vs. Incident PAR - Sunset")
+
+ggplot(sunset, aes(x=incident_par, y=humid_temp) ) +
+  geom_point() +
+  ggtitle("Temperature vs. Incident PAR - Sunset")
+
+ggplot(sunset, aes(x=incident_par, y=reflected_par) ) +
+  geom_point() +
+  ggtitle("Reflected PAR vs. Incident PAR - Sunset")
+
+## height
+ggplot(sunset, aes(x=incident_par, y=Height) ) +
+  geom_point() +
+  ggtitle("Height vs. Incident PAR - Sunset")
+
+
+rm(sunrise)
+rm(sunset)
 
 ```
 
+Describe findings from the charts.
+
 
 ### (b) Any predictors associated with Incident PAR. If so explain the relationship.
+Humidity and temperature are good predictors of Incident PAR.
+
 
 ### (c) 
 
