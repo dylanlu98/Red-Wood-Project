@@ -98,7 +98,9 @@ ggplot(all, aes(voltage, color = data_source, fill = data_source)) +
   scale_color_brewer(palette="Spectral", labels=c("Logger", "Network"))+
   scale_fill_brewer(palette="Spectral", labels=c("Logger", "Network"))
 ```
-Voltage units are not consistent across the two sources. Figure 2 plots the comparison and illustrates the scaling difference. The network voltage is several orders of magnitude greater than readings in the logger source. Voltage readings from the network source were divided by 100 to match the logger voltage units.
+Voltage units are not consistent across the two sources. Figure 2 plots the comparison and illustrates the scaling difference. The network voltage is several orders of magnitude greater than readings in the logger source. Voltage readings from the network source were converted to logger voltage units using the following formula.
+
+$$ Voltage = (0.6)\frac{1024}{V_{net}} $$
 
 Hamatop and hamabot dimensions were converted to match the PAR units in the original paper, but values were consistent across sources.
 
@@ -131,10 +133,11 @@ Out of this duplicate subset how many are unique entries? A unique entry indicat
 ```{r, dupe-rows-by-nodeid}
 # data frame of the duplicates 
 duplicate_entries = all %>% 
+                      ungroup() %>%
                       group_by(epoch, nodeid, data_source) %>%
                       tally() %>%
                       filter(n > 1) %>% select(epoch, nodeid, data_source) %>%
-                      inner_join(all)
+                      inner_join(all, by = c("epoch", "nodeid", "data_source"))
 
 # how many are unique entries?
 non_dist =  nrow(duplicate_entries) - nrow(distinct(duplicate_entries))
@@ -152,7 +155,7 @@ ggplot(count_difference, aes(x="", y=value, fill=group)) +
 ```{r, remove-duplicate-readings}
 # take an average across all measures for subset that varies across composite keys.
 # (voltage, depth, humidity, humid_temp, humid_adj, hamatop, hamabot)
-dupes_dis = distinct(duplicate_entries)   # 22,587 composite key
+dupes_dis = distinct(duplicate_entries)
 
 # store the new values in dupe_dis and append it to all
 dupe_dis = dupes_dis %>% 
@@ -166,7 +169,7 @@ dupe_dis = dupes_dis %>%
             mean_hamabot = mean(hamabot),
             .groups = 'drop'
             ) %>%
-  inner_join(dupes_dis) %>%
+  inner_join(dupes_dis, by = c("epoch", "nodeid", "data_source")) %>%
   select(epoch, nodeid, mean_voltage, mean_depth, mean_humidity, mean_humid_temp, mean_humid_adj, mean_hamatop, mean_hamabot, data_source) %>%
   rename(voltage = mean_voltage,
          depth = mean_depth,
@@ -185,10 +188,15 @@ all = all %>%
     group_by(epoch, nodeid, data_source) %>%
     tally() %>%
     filter(n == 1) %>% select(epoch, nodeid, data_source) %>%
-    inner_join(all)
+    inner_join(all, by = c("epoch", "nodeid", "data_source"))
 
 # union the new duplicate values
 all = union(all, dupe_dis)
+
+
+# remove unneeded df
+rm(dupes_dis)
+rm(dupe_dis)
 ```
 
 
@@ -205,31 +213,19 @@ all$incident_par[is.na(all$incident_par)] = 0
 all$reflected_par[is.na(all$reflected_par)] = 0
 
 # voltage unit conversion
+# 0.6 * (1024/reading)
 all = all %>%
   mutate(voltage = case_when(
-    data_source == 'net' ~ voltage / 100,
+    #data_source == 'net' ~ voltage / 100,
+    data_source == 'net' ~ 0.6*(1024 / voltage),
     TRUE ~ voltage
   ))
 ```
 
 
-```{r, get-good-date-column, echo=FALSE}
-# update result time with accurate values from the metadata file.
-all = all %>% 
-  inner_join(dates, by = c("epoch" = "epochNums")) %>%
-  select(-result_time) %>%
-  relocate(epochDates, epochDays)
-
-# split up the new date field by space...want to keep the time
-all = all %>%
-  separate(epochDates, into = c('weekday', 'month', 'day', 'time', 'year'),
-           sep = " +")
-```
-
 ```{r, remove-voltage-errors}
 voltage_removed = all %>%
   filter(voltage > 3 | voltage < 2.4)
-
 all = all %>%
   filter(voltage >= 2.4 & voltage <= 3)
 ```
@@ -242,6 +238,51 @@ There are a large number of entries with completely missing measurement data.
 all = all %>% drop_na(humid_temp) %>% drop_na(humidity) %>% drop_na(hamatop) %>% drop_na(hamabot)
 ```
 
+```{r, create-holistic-view}
+# one measurement per composite key...take average of numeric columns
+initial_all_df = all
+# take the average for the numeric columns doesn't matter for single entries b/c the average will just be the same value
+all = all %>%
+  ungroup() %>%
+  group_by(nodeid, epoch) %>%
+  summarize(mean_voltage = mean(voltage), 
+           mean_depth = mean(depth),
+           mean_humidity = mean(humidity),
+           mean_humid_temp = mean(humid_temp),
+           mean_humid_adj = mean(humid_adj),
+           mean_hamatop = mean(hamatop),
+           mean_hamabot = mean(hamabot),
+           mean_incident_par = mean(incident_par),
+           mean_reflected_par = mean(reflected_par),
+           .groups = 'drop') %>%
+  rename(voltage = mean_voltage,
+         depth = mean_depth,
+         humidity = mean_humidity,
+         humid_temp = mean_humid_temp,
+         humid_adj = mean_humid_adj,
+         hamatop = mean_hamatop,
+         hamabot = mean_hamabot,
+         incident_par = mean_incident_par,
+         reflected_par = mean_reflected_par)
+  
+
+```
+
+
+```{r, get-good-date-column, echo=FALSE}
+# update result time with accurate values from the metadata file.
+all = all %>% 
+  ungroup() %>%
+  inner_join(dates, by = c("epoch" = "epochNums")) %>%
+  #select(-result_time) %>%
+  relocate(epochDates, epochDays)
+
+# split up the new date field by space...want to keep the time
+all = all %>%
+  separate(epochDates, into = c('weekday', 'month', 'day', 'time', 'year'),
+           sep = " +")
+```
+
 
 Duplicates and entries with readings greater than 3V or lower than 2.4V were removed following procedure outlined in Tolle paper. Table XX lists the record count after each removal step.
 
@@ -249,12 +290,13 @@ Duplicates and entries with readings greater than 3V or lower than 2.4V were rem
 ---------------------   -----------------   --------------
 Ingestion               416,036             0
 Duplicate Removal       393,213             -22,823
-Voltage Removal         264,144             -129,096
-Drop NAs                256,628             -7,516
+Voltage Removal         351,914             -41,299
+Drop NAs                341,659             -10,255
+Holistic View           277,241
 ------------------      -----------------   --------------
 
 ### Comment on the number of missing measurements and the corresponding date/time period?
-The time of day for the missing measurements (voltage only) appears uniform across the 24 hour range the sensors were active. Over the course of the experiment we see more missing measurements as the experiment goes on, which would correspond with the battery issue mentioned in the paper. We also see a fair amount of logger failures at the beginning of the experiment.
+The time of day for the missing measurements (voltage only) appears uniform across the 24 hour range the sensors were active. Over the course of the experiment we see more NA measurements at the beginning of the experiment.
 
 
 ```{r, distibution-of-missing-measurements}
@@ -273,18 +315,14 @@ ggplot(voltage_removed, aes(date_concat)) +
     scale_x_date(breaks = scales::breaks_pretty(13))
 ```
 
-
-
 ### (c - incorporate location data from other file)
 After we joined the location data, we have 15 variables.
 ```{r, incorporate-location-data}
 locations <- read.table(file = "mote-location-data.txt", header = TRUE, sep = ",")
 colnames(locations)[1] = "nodeid"
 
-# this is dropping some records...not sure why
 all = left_join(all, locations, by="nodeid")
 ```
-
 
 
 ### (d - visually identify outliers for each of following: humidity, humid temp, hamatop, hamabot. Remove and comment on rationale for removing)
@@ -295,6 +333,8 @@ We observed similar problems in our dataset. Visually inspecting the histogram w
 Plotting individual nodes over time we identified nodeid 123 as the problem node (not tracking other readings) which starts to occur around epoch 5000. All sensor readings after this epoch were removed.
 
 Visually inspecting temperature, we see a large number of outliers in the boxplot. A quick google search for hottest recorded temperature in Sonoma, CA is 44 degrees Celsius. Tolle's measurement ranges for temperature indicate a max value of 32.6 degrees Celsius. Looking at a temerature vs time plot at the height level it becomes clear that temperatures recorded in the high 30s/low 40s are erros. Thus, all measurements greater than 32.6 were removed.
+
+Visually inspecting the incident par boxplot we see two distinct groups of outliers. We determined to remove the second group of outliers by enforcing a manual cutoff of < 2500.
 
 ```{r, identify-outliers}
 # raw histograms
@@ -308,9 +348,9 @@ all %>%
    geom_histogram()
 
 # remove readings with humidity > 100%
-# this will remove all sensor readings...might only want to set to NA so other dimensions remain intact
+boxplot(all$humidity, main = "humidity - with outliers")
 all = all %>% filter(humidity <= 100)
-
+boxplot(all$humidity, main = "humidity")
 
 # paper mentions one node not tracking humidity with others i think nodeid 123
 all %>% filter(nodeid == 119 | nodeid == 123) %>%
@@ -323,16 +363,17 @@ ggplot(aes(x = epoch, y = humidity, color = nodeid)) +
 all = all %>% filter((nodeid == 123 & epoch <= 5000) | (nodeid != 123))
 
 # boxplots - use quantile function to remove
-boxplot(all$humid_temp, main = "humid temp")
-boxplot(all$humidity, main = "humidity")
-boxplot(all$incident_par, main = "Incident PAR")
 boxplot(all$reflected_par, main = "Reflected PAR")
 
 # remove measurements based on temperature cutoff
-# temp < 44
-all = all %>% filter(humid_temp <= 32.6)
-
 boxplot(all$humid_temp, main = "humid temp - outliers removed")
+all = all %>% filter(humid_temp <= 32.6)
+boxplot(all$humid_temp, main = "humid temp - outliers removed")
+
+# remove incident par outliers
+boxplot(all$incident_par, main = "Incident PAR - with outliers")
+all = all %>% filter(incident_par < 2500)
+boxplot(all$incident_par, main = "Incident PAR - without outliers")
 
 ## interquartile range - prompt says to visually inspect
 # IQ_humid_temp = quantile(all$humid_temp, prob= c(0.01, 0.25, 0.75, 0.99))
@@ -350,7 +391,7 @@ Duplication issue. NaN issue (all rows are blank).
 
 ## 3 Data Exploration
 ### (a)
-We decided to look at two distinct time periods, sunrise and sunset, as we belived they presented the most dynamic conditions to explore potential correlations. Would correlations observed during one event also manifest during the other? Researching sunrise and sunset times in Sonoma, CA lead us to select 5-hour intervals encompassing both astrological events.
+We decided to look at two distinct time periods, sunrise and sunset, as we belived they presented the most dynamic conditions to explore potential correlations. Would correlations observed during one event also manifest during the other? Researching sunrise and sunset times in Sonoma, CA during the months of the study lead us to select 5-hour intervals encompassing both astrological events.
 
 source: https://sunrise-sunset.org/us/sonoma-ca/2004/6
 
@@ -361,8 +402,6 @@ Sunset                    4:00pm              9:00pm
 ---------------------     --------------      --------------
 
 ```{r, pairwise-scatterplots}
-# "humidity","humid_temp","incident_par","reflected_par"
-
 ## only want one measurement per distinct time period, irrespective of the source...
 ## perform something similar to the dupe check above
 
@@ -370,8 +409,8 @@ Sunset                    4:00pm              9:00pm
 sunrise = all %>% filter(time >= "05:00" & time <= "10")
 sunset = all %>% filter(time >= "16" & time <= "21")
 
-ggcorr(all[c("humidity","humid_temp","incident_par", "reflected_par")], method = c("everything", "pearson")) +
-  labs(title = "Correlation Map - All Time Periods")
+# ggcorr(all[c("humidity","humid_temp","incident_par", "reflected_par")], method = c("everything", "pearson")) +
+#   labs(title = "Correlation Map - All Time Periods")
 ggcorr(sunrise[c("humidity","humid_temp","incident_par", "reflected_par")], method = c("everything", "pearson")) +
   labs(title = "Correlation Map - Sunrise")
 ggcorr(sunset[c("humidity","humid_temp","incident_par", "reflected_par")], method = c("everything", "pearson")) +
@@ -427,19 +466,19 @@ rm(sunrise)
 rm(sunset)
 ```
 
-Describe findings from the charts.
+#### Describe findings from the charts.
+Humidity vs. temperature plot reveals a relationship between the two variables as many of the points look clustered together. We see that as temperature increases, humidity decreases. This trend appears linear during sunrise, but appears exponential/polynomial during sunset.
 
+Correlation plots were created for each of the measured values which can be viewed as proxies for scatter plot relationships. Highlights from these figures include a strong positive correlation between incident and reflected PAR and a negative correlation between humidity and temperature. All correlations appear magnified (daker colors) during sunset indicating strong relationships.
 
 ### (b) Any predictors associated with Incident PAR. If so explain the relationship.
 Temperature appears to be good predictor of incident PAR. We saw positive correlations between the two variables during both time frames.
 
-Humidity displayed a negative correlation with incident PAR which is more prenounced during the sunset window.
+Humidity displayed a negative correlation with incident PAR which is more pronounced during sunset.
 
 ### (c) Value as Time Series - Comment on range, continuity and strange behavior
 
 ```{r, time-series-plots}
-# value vs. time with height as color cue
-# day plots are required bare minimum
 # (Temperature, Relative Humidity, Incident PAR and Reflected PAR)
 
 # convert day
@@ -457,7 +496,6 @@ all = all %>%
    Height > 40 & Height <= 50 ~ "40 - 50 m",
    Height > 50 & Height <= 60 ~ "50 - 60 m",
    Height > 60  ~ ">60 m"))
-
 
 # Temperature
 ggplot(all %>% na.omit(Height), aes(x = date_concat, y = humid_temp, colour = height_class)) +
@@ -484,28 +522,30 @@ ggplot(all %>% na.omit(Height), aes(x = date_concat, y = reflected_par, colour =
     ggtitle("Reflected PAR vs. Time") +
     scale_x_datetime(breaks = scales::breaks_pretty(13))
 ```
+Comment on the range, continuity and strange behaviors in these variables.
 #### Temperature vs. Time
-In 
+We artificially removed high temperature readings discussed earlier. We see a range of 6.78 - 32.6 degrees Celsius respectively.
+
+There are some interesting trends in the temporal domain. All height sensors track the same general shape, but experience slight differences based on height that may indicate a relationship worth investigating. The high temperatures were almost exclusively acheived in the evenings (May 2nd/14th) by sensors mounter higher than 30m. This pattern is not consistent with the low temperature readings.
+
+One interesting empirical note, we wee a local temperature max around May 31st that may indicate some meteorological event (heat wave, cold front, etc.) during the time period which could be interesting to focus future analysis on.
 
 #### Humidity vs. Time
-
+Humidity readings were artificially capped at 0% and 100% respectively. We see a range of 16.3% - 100% over the duration of collection. All sensors tracked the same general trend irrespective of sensor height which indicates no or weak relationship between height and humidity. One interesting thing manifested in this chart is around May 31st where we see humdity drop to a local min before increasing back up. This corresponds with the temperature increase we observed over the same temporal domain.
 
 #### Incident PAR vs. Time
-Cloudy day. Night time vs Daytime
+We see range of 0 and 2146 over duration of collection. Sensors mounted the highest often achieved the highest reading each day. The peaks and valleys represent the day and night distinction, with peaks during the day and valleys at night. On May 26th the chart experiences a much lower local max of ~800 when compared with the other days which might indicate some sort of sun blocking event (cloud cover, storm, etc.).
 
 #### Reflected PAR vs. Time
-
-
+We see range of 0 - 169 over duration of collection. We see most of the daily high readings correspond to the tallest mounted sensors and most of the daily lows with the lowest mounted sensors. One interesting observation from this plot is specific to the daily maximum's: there is much greater variability in this metric than seen in the incident PAR plot. Several days recorded max values that are much lower. One reading corresponds with the cloudy day (May 26th) noted in the incident PAR chart, but there are several other days which are interesting and may be worth investigating.
 
 ### (d) PCA Analysis & Scree Plot
 
 ```{r, pca-and-screeplot}
-# perfrom pca
-pr_comp = prcomp(all %>% ungroup() %>% select(humidity, humid_temp, incident_par, reflected_par), center = TRUE, scale. = TRUE)
+# perform pca
+pr_comp = prcomp(all %>% ungroup() %>% select(height, humidity, humid_temp, incident_par, reflected_par), center = TRUE, scale. = TRUE)
 summary(pr_comp)
 pr_comp
-
-
 
 # scree plot
 eig_values = (pr_comp$sdev)^2 
@@ -516,28 +556,27 @@ ggplot() + geom_point(aes(x = 1:length(eig_values), y=eigs_cum)) +
   labs(x = "PC Number (in order of eigenvalue size)", y = "fraction of total variance explained") +
   ggtitle("Scree Plot")
 
-
 ```
-
 
 *** 
 
 ## 4 Interesting Findings
-Idea List (things to investigate):
--   is a tree sentient? Does the weather from the previous n days affect any of the measurement readings collected? For example, would a series of dry days show any humidity differences in or around the tree?
 -   Influence points. How much can the distributions be shifted by missing values (mentioned in article as future work). Does the missing data affect any of the findings?
--   How does the collected data match up with any weather trends in the area? Maybe the tree had higher humidity rates for example than normal ground.
 
+Can we cluster dimension measurements by sensor using kmeans? (cluster number = sensor number)
 ```{r, interesting-finding-1}
 
 ```
 
-
+Can we cluster measurements by day?
 ```{r, interesting-finding-2}
 
 ```
 
+Some sort of linear model...variability of readings with height
+include height in linear model
 
+variabilty of local max readings from reflected par...why is there so much variablity in these readings vs. the incident par?
 ```{r, interesting-finding-3}
 
 ```
