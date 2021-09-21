@@ -4,8 +4,6 @@ author: "Andrew Amore, Dylan (Shi-Ting) Lu"
 output:
   pdf_document:
     fig_caption: true
-classoption:
-- twocolumn
 
 header-includes: |
   \usepackage{titlesec}
@@ -29,7 +27,7 @@ library(scales)   # to access breaks/formatting functions
 library(gridExtra) # for arranging plots
 ```
 
-## 1a Data Collection
+## 1 Data Collection
 ### Paper Summary
 The purpose of the study is twofold: capture information about a single redwood tree canopy over time and provide a roadmap for future macroscopic studies using a multi-sensor network.
 
@@ -37,7 +35,6 @@ The data was collected in Sonoma, California on a single Redwood tree over a per
 
 Based on this study, researchers were able to verify the existence of dynamic spatio-temporal gradients surrounding the tree and prove that complex biological theories can be validated using this measurement framework. Researchers highlighted lesson's learned, beneficial for future studies, highlighting sensor sensitivity based on positioning and yield issues from memory/network constraints.
 
-### Data Collection
 ### How are sensors deployed? 
 Nodes (sensor housing) were attached to the body of one redwood tree at various radial, angular, and vertical distances. At  roughly 2-meter spacing intervals the first sensor was placed 15m from ground level and the last sensor at 70m above ground level. The majority of nodes used in the analysis were placed on the west side of the tree about 0.1m - 1m from the tree trunk. Several nodes were placed outside of the measurement envelope to monitor readings in the immediate vicinity.
 
@@ -297,7 +294,7 @@ We observed similar problems in our dataset. Visually inspecting the histogram w
 
 Plotting individual nodes over time we identified nodeid 123 as the problem node (not tracking other readings) which starts to occur around epoch 5000. All sensor readings after this epoch were removed.
 
-Visually inspecting temperature, we see a large number of outliers in the boxplot. A quick google search for hottest recorded temperature in Sonoma, CA is 44 degrees Celsius. All measurements greater than this cutoff were removed which deviates slightly from max value Tolle includes in final paper.
+Visually inspecting temperature, we see a large number of outliers in the boxplot. A quick google search for hottest recorded temperature in Sonoma, CA is 44 degrees Celsius. Tolle's measurement ranges for temperature indicate a max value of 32.6 degrees Celsius. Looking at a temerature vs time plot at the height level it becomes clear that temperatures recorded in the high 30s/low 40s are erros. Thus, all measurements greater than 32.6 were removed.
 
 ```{r, identify-outliers}
 # raw histograms
@@ -333,19 +330,17 @@ boxplot(all$reflected_par, main = "Reflected PAR")
 
 # remove measurements based on temperature cutoff
 # temp < 44
-all = all %>% filter(humid_temp < 44)
+all = all %>% filter(humid_temp <= 32.6)
 
 boxplot(all$humid_temp, main = "humid temp - outliers removed")
 
 ## interquartile range - prompt says to visually inspect
 # IQ_humid_temp = quantile(all$humid_temp, prob= c(0.01, 0.25, 0.75, 0.99))
 # IQR = IQ_humid_temp["75%"] - IQ_humid_temp["25%"]
-# 
 # IQ_humidity = quantile(all$humidity, prob= c(0.01, 0.25, 0.75, 0.99))
 # IQ_incident_par = quantile(all$incident_par, prob= c(0.01, 0.25, 0.75, 0.99))
 # IQ_reflected_par = quantile(all$reflected_par, prob= c(0.01, 0.25, 0.75, 0.99))
 ```
-
 
 
 ### (e bonus - discuss other possible outliers and explain reason why it is better to remove them than to keep)
@@ -440,7 +435,7 @@ Temperature appears to be good predictor of incident PAR. We saw positive correl
 
 Humidity displayed a negative correlation with incident PAR which is more prenounced during the sunset window.
 
-### (c) Value as Time Series
+### (c) Value as Time Series - Comment on range, continuity and strange behavior
 
 ```{r, time-series-plots}
 # value vs. time with height as color cue
@@ -450,6 +445,8 @@ Humidity displayed a negative correlation with incident PAR which is more prenou
 # convert day
 all$date_concat =
   as.Date(paste(all$year, all$month, all$day), "%Y %b %d")
+
+all$date_concat = as.POSIXct(paste(all$date_concat, all$time))
 
 # try and bin heights (looking at distinct)
 all = all %>% 
@@ -463,38 +460,61 @@ all = all %>%
 
 
 # Temperature
-ggplot(all, aes(x = date_concat, y = humid_temp, colour = height_class)) +
+ggplot(all %>% na.omit(Height), aes(x = date_concat, y = humid_temp, colour = height_class)) +
     geom_line() +
     ggtitle("Temperature vs. Time") +
-    scale_x_date(breaks = scales::breaks_pretty(13))
-
+    scale_x_datetime(breaks = scales::breaks_pretty(13))
+#+ scale_x_date(breaks = scales::breaks_pretty(13))
 
 # Humidity
-ggplot(all, aes(x = date_concat, y = humidity, colour = height_class)) +
+ggplot(all %>% na.omit(Height), aes(x = date_concat, y = humidity, colour = height_class)) +
     geom_line() +
     ggtitle("Humidity vs. Time") +
-    scale_x_date(breaks = scales::breaks_pretty(13))
+    scale_x_datetime(breaks = scales::breaks_pretty(13))
 
 # Incident PAR
-ggplot(all, aes(x = date_concat, y = incident_par, colour = height_class)) +
+ggplot(all %>% na.omit(Height), aes(x = date_concat, y = incident_par, colour = height_class)) +
     geom_line() +
     ggtitle("Incident PAR vs. Time") +
-    scale_x_date(breaks = scales::breaks_pretty(13))
+    scale_x_datetime(breaks = scales::breaks_pretty(13))
 
 # Reflected PAR
-ggplot(all, aes(x = date_concat, y = reflected_par, colour = height_class)) +
+ggplot(all %>% na.omit(Height), aes(x = date_concat, y = reflected_par, colour = height_class)) +
     geom_line() +
     ggtitle("Reflected PAR vs. Time") +
-    scale_x_date(breaks = scales::breaks_pretty(13))
-
-
+    scale_x_datetime(breaks = scales::breaks_pretty(13))
 ```
+#### Temperature vs. Time
+In 
+
+#### Humidity vs. Time
+
+
+#### Incident PAR vs. Time
+Cloudy day. Night time vs Daytime
+
+#### Reflected PAR vs. Time
 
 
 
 ### (d) PCA Analysis & Scree Plot
 
 ```{r, pca-and-screeplot}
+# perfrom pca
+pr_comp = prcomp(all %>% ungroup() %>% select(humidity, humid_temp, incident_par, reflected_par), center = TRUE, scale. = TRUE)
+summary(pr_comp)
+pr_comp
+
+
+
+# scree plot
+eig_values = (pr_comp$sdev)^2 
+eigs_cum <- cumsum(eig_values) /sum(eig_values)
+
+# may be useful for plotting
+ggplot() + geom_point(aes(x = 1:length(eig_values), y=eigs_cum)) +
+  labs(x = "PC Number (in order of eigenvalue size)", y = "fraction of total variance explained") +
+  ggtitle("Scree Plot")
 
 
 ```
@@ -507,6 +527,21 @@ Idea List (things to investigate):
 -   is a tree sentient? Does the weather from the previous n days affect any of the measurement readings collected? For example, would a series of dry days show any humidity differences in or around the tree?
 -   Influence points. How much can the distributions be shifted by missing values (mentioned in article as future work). Does the missing data affect any of the findings?
 -   How does the collected data match up with any weather trends in the area? Maybe the tree had higher humidity rates for example than normal ground.
+
+```{r, interesting-finding-1}
+
+```
+
+
+```{r, interesting-finding-2}
+
+```
+
+
+```{r, interesting-finding-3}
+
+```
+
 
 ***
 
@@ -598,16 +633,15 @@ Some statement here about how the gradients over height become more clear when w
 ![Original Tolle Boxplots - 3d](./images/3d_plot_pic.JPG)
 
 
-### Tolle Figure 4 Plot Suggestions
-Any suggestions for improving the first two plots in Figure 4? Can you distinguish all the colors in these two plots?
+### Any suggestions for improving the first two plots in Figure 4? Can you distinguish all the colors in these two plots?
 
-I think discretizing the time plot (maybe showing every hour) would make the content more digestiable. Both charts are also lacking a legend and leave the onus on the reader to discern which heights correspond to which colors. To more clearly show height gradient we believe using a two-color continuum (shortest to tallest) would more clearly display the trend similar to what the author did in Figure 5.
+We think discretizing the time plot (maybe showing every hour) would make the content more digestible. Both charts are also lacking a legend and leave the onus on the reader to discern which heights correspond to which colors. To more clearly show height gradient we believe using a two-color continuum (shortest to tallest) would more clearly display the trend similar to what the author did in Figure 5.
 
-### Tolle Figure 7 Comment
-Comment on Figure 7. Is it possible to generate a better visualization to highlight the difference between network and log data?
+### Comment on Figure 7. Is it possible to generate a better visualization to highlight the difference between network and log data?
 
-We believe that overlaying the bar charts might create better contrast between the two sources. 
+The last chart displaying yield as a function of height and day is confusing and could have been left off. What do the lengths of the horizontal bars represent?
 
+We also believe analyzing combined yield, in addition to individual data source yield, could have been beneficial to the reader. Presenting overlay charts across data sources might create better contrast between the two collection methods as it's difficult to make direct comparisons in the current format. The histograms we presented earlier, showing data source distinction by color, could have shown the importance of redundant data collection methods in a distributed sensor network and might have addressed some of the concerns in lessons learned about large gaps of missing data.
 
 ## Appendix
 
