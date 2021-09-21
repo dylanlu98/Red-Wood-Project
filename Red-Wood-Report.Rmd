@@ -100,7 +100,7 @@ ggplot(all, aes(voltage, color = data_source, fill = data_source)) +
 ```
 Voltage units are not consistent across the two sources. Figure 2 plots the comparison and illustrates the scaling difference. The network voltage is several orders of magnitude greater than readings in the logger source. Voltage readings from the network source were converted to logger voltage units using the following formula.
 
-$$ Voltage = (0.6)\frac{1024}{V_{net}} $$
+$$ Voltage = (0.6)\frac{1024}{V_{network}} $$
 
 Hamatop and hamabot dimensions were converted to match the PAR units in the original paper, but values were consistent across sources.
 
@@ -271,6 +271,17 @@ all = all %>%
 
 ```{r, get-good-date-column, echo=FALSE}
 # update result time with accurate values from the metadata file.
+voltage_removed = voltage_removed %>% 
+  ungroup() %>%
+  inner_join(dates, by = c("epoch" = "epochNums")) %>%
+  #select(-result_time) %>%
+  relocate(epochDates, epochDays)
+
+# split up the new date field by space...want to keep the time
+voltage_removed = voltage_removed %>%
+  separate(epochDates, into = c('weekday', 'month', 'day', 'time', 'year'),
+           sep = " +")
+
 all = all %>% 
   ungroup() %>%
   inner_join(dates, by = c("epoch" = "epochNums")) %>%
@@ -292,7 +303,8 @@ Ingestion               416,036             0
 Duplicate Removal       393,213             -22,823
 Voltage Removal         351,914             -41,299
 Drop NAs                341,659             -10,255
-Holistic View           277,241
+Holistic View           277,241             -64,418
+Outlier Removal         264,932             -12,309
 ------------------      -----------------   --------------
 
 ### Comment on the number of missing measurements and the corresponding date/time period?
@@ -301,6 +313,7 @@ The time of day for the missing measurements (voltage only) appears uniform acro
 
 ```{r, distibution-of-missing-measurements}
 # time of day
+
 ggplot(voltage_removed, aes(time)) +
     geom_bar(aes(fill = data_source)) +
     ggtitle("Time of Day - Missing Measurements")
@@ -366,7 +379,7 @@ all = all %>% filter((nodeid == 123 & epoch <= 5000) | (nodeid != 123))
 boxplot(all$reflected_par, main = "Reflected PAR")
 
 # remove measurements based on temperature cutoff
-boxplot(all$humid_temp, main = "humid temp - outliers removed")
+boxplot(all$humid_temp, main = "humid temp - including outliers")
 all = all %>% filter(humid_temp <= 32.6)
 boxplot(all$humid_temp, main = "humid temp - outliers removed")
 
@@ -543,7 +556,7 @@ We see range of 0 - 169 over duration of collection. We see most of the daily hi
 
 ```{r, pca-and-screeplot}
 # perform pca
-pr_comp = prcomp(all %>% ungroup() %>% select(height, humidity, humid_temp, incident_par, reflected_par), center = TRUE, scale. = TRUE)
+pr_comp = prcomp(all %>% ungroup() %>% select(humidity, humid_temp, incident_par, reflected_par), center = TRUE, scale. = TRUE)
 summary(pr_comp)
 pr_comp
 
