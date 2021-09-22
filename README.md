@@ -8,11 +8,11 @@
 
 - ~~Clean data to match the quartiles from paper (value dimension). Get close to the values or we probably need to have an explanation for why they aren't close).~~
 
-- fix formatting on box plots in 5b to match the Tolle paper (code chunk name: q5b-height-value-box-plots)
+- ~~fix formatting on box plots in 5b to match the Tolle paper (code chunk name: q5b-height-value-box-plots)~~
 
 - Finish question 4
 
-- Write about interesting trends in 3c
+- ~~Write about interesting trends in 3c~~
 
 - Final chart validation and clean up. Look over charts to make sure the trends make sense, plots have accurate labels, titles, are legible, etc.
 

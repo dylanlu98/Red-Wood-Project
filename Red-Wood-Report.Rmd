@@ -152,7 +152,8 @@ ggplot(count_difference, aes(x="", y=value, fill=group)) +
   geom_text(aes(label = value),
             position = position_stack(vjust = 0.5)) +
   coord_polar("y", start=0)  + scale_fill_brewer(palette="Blues")+
-  theme_minimal()
+  theme_minimal() +
+  labs()
 ```
 ```{r, remove-duplicate-readings}
 # take an average across all measures for subset that varies across composite keys.
@@ -195,8 +196,7 @@ all = all %>%
 # union the new duplicate values
 all = union(all, dupe_dis)
 
-
-# remove unneeded df
+# remove unneeded dfs
 rm(dupes_dis)
 rm(dupe_dis)
 rm(duplicate_entries)
@@ -267,8 +267,6 @@ all = all %>%
          hamabot = mean_hamabot,
          incident_par = mean_incident_par,
          reflected_par = mean_reflected_par)
-  
-
 ```
 
 
@@ -342,15 +340,13 @@ all = left_join(all, locations, by="nodeid")
 
 
 ### (d - visually identify outliers for each of following: humidity, humid temp, hamatop, hamabot. Remove and comment on rationale for removing)
-Tolle mentioned outlier related issues corresponding to humidity measurements where %RH was greater than 100%. 
+Tolle mentioned outlier related issues corresponding to humidity measurements where %humidity was greater than 100%. 
 
-We observed a similar problem in our dataset based on out analysis. Visually inspecting the histogram and corresponding boxplot we see a number of readings over 100%, clearly indicating the same problem. Measurements corresponding to these readings were excluded from analysis.
+We observed a similar problem in our dataset. Visually inspecting the histogram and corresponding boxplot we see a number of readings over 100% threshold, which were excluded from analysis.
 
-Plotting individual nodes over time we identified nodeid 123 as the problem node (not tracking other readings) which starts to occur around epoch 5000. All sensor readings after this epoch were removed.
+Visually inspecting temperature plots, we see a large number of outliers. A quick google search for the hottest recorded temperature in Sonoma, CA revealed 44 degrees Celsius, much lower than the 100+ degree points indicated on the plots. Tolle's max temperature reading was 32.6 degrees and because we are unfamilar with the climate in the geographic region we decided to use this as our cutoff filter. All measurements greater than 32.6 were removed.
 
-Visually inspecting temperature plots, we see a large number of outliers in the boxplot. A quick google search for hottest recorded temperature in Sonoma, CA is 44 degrees Celsius. Tolle's measurement ranges for temperature indicate a max value of 32.6 degrees Celsius. Looking at a temperature vs time plot at the height level it becomes clear that temperatures recorded in the high 30s/low 40s are erros. Thus, all measurements greater than 32.6 were removed.
-
-Visually inspecting the incident par boxplot we see two distinct groups of outliers. We determined to remove the second group of outliers by enforcing a manual cutoff of < 2500.
+The incident par histogram shows a long tail distribution. In the boxplot we see two distinct groups of outliers separated by almost 1000 units. We determined to remove the second group by enforcing a manual cutoff of < 2500 because it seemed to represent sensor failure due to the low number of points.
 
 ```{r, identify-outliers}
 # raw histograms
@@ -363,44 +359,37 @@ all %>%
    facet_wrap(~ key, scales = "free") +
    geom_histogram()
 
-# try and facet wrap charts
-# all %>% 
-#   select(humidity, humid_temp, incident_par) %>%
-#   gather() %>%
-#   ggplot(aes(value)) + 
-#     facet_wrap(~ key, scales = "free") +
-#     geom_boxplot() +
-#     coord_flip()
-
 # try with layout
 par(mfrow = c(1,2))
 
 # remove readings with humidity > 100%
-boxplot(all$humidity, main = "Humidity - Original ")
+boxplot(all$humidity, main = "Humidity - Original", ylab = "% Humidity")
 all = all %>% filter(humidity <= 100)
-boxplot(all$humidity, main = "Humidity - Outliers Removed")
+boxplot(all$humidity, main = "Humidity - Outliers Removed", ylab = "% Humidity")
 
 # remove measurements based on temperature cutoff
-boxplot(all$humid_temp, main = "Temperature - Original ")
+boxplot(all$humid_temp, main = "Temperature - Original", ylab = "\u00B0C")
 all = all %>% filter(humid_temp <= 32.6)
-boxplot(all$humid_temp, main = "Temperature - Outliers Removed")
+boxplot(all$humid_temp, main = "Temperature - Outliers Removed", ylab = "\u00B0C")
 
 # remove incident par outliers
-boxplot(all$incident_par, main = "Incident PAR - Original")
+boxplot(all$incident_par, main = "Incident PAR - Original", ylab = expression(mu~ "mol/m"^"2"~"/s"))
 all = all %>% filter(incident_par < 2500)
-boxplot(all$incident_par, main = "Incident PAR - Outliers Removed")
+boxplot(all$incident_par, main = "Incident PAR - Outliers Removed", ylab = expression(mu~ "mol/m"^"2"~"/s"))
 par(mfrow = c(1,1))
 ```
 
 
 ### (e bonus - discuss other possible outliers and explain reason why it is better to remove them than to keep)
-Duplication issue. NaN issue (all rows are blank).
+As we noted above, we found a large number of duplicate entries from both measurement sources. These duplicated entries were removed to prevent overweighting distributions. The incident PAR boxplot indicated a large number of potential outliers even after initial removal. However we decided to include them in anaylsis because we felt like the nighttime 0 PAR readings were skewing the quantiles closer towards 0. We also are not familiar with the flux units on the dimension and did not feel that we possessed eough expertise to make a judgement call one way or the other.
+
+NaN issue (all rows are blank).
 
 ***
 
 ## 3 Data Exploration
 ### (a)
-We decided to look at two distinct time periods, sunrise and sunset, as we belived they presented the most dynamic conditions to explore potential correlations. Would correlations observed during one event also manifest during the other? Researching sunrise and sunset times in Sonoma, CA during the months of the study lead us to select 5-hour intervals encompassing both astrological events.
+We decided to look at two distinct time periods, sunrise and sunset, as we believed they presented the most dynamic conditions to explore potential correlations. Would correlations observed during one event also manifest during the other? Researching sunrise and sunset times in Sonoma, CA during the months of the study lead us to select 5-hour intervals encompassing both astrological events.
 
 source: https://sunrise-sunset.org/us/sonoma-ca/2004/6
 
@@ -424,7 +413,6 @@ ggcorr(sunrise[c("humidity","humid_temp","incident_par", "reflected_par")], meth
   labs(title = "Correlation Map - Sunrise")
 ggcorr(sunset[c("humidity","humid_temp","incident_par", "reflected_par")], method = c("everything", "pearson")) +
   labs(title = "Correlation Map - Sunset")
-
 ########### Sunrise charts - 5:00am to 10:00am
 ## value dimension only
 ggplot(sunrise, aes(x=humid_temp, y=humidity) ) +
@@ -546,7 +534,7 @@ Humidity readings were artificially capped at 0% and 100% respectively. We see a
 We see range of 0 and 2146 over duration of collection. Sensors mounted the highest often achieved the highest reading each day. The peaks and valleys represent the day and night distinction, with peaks during the day and valleys at night. On May 26th the chart experiences a much lower local max of ~800 when compared with the other days which might indicate some sort of sun blocking event (cloud cover, storm, etc.).
 
 #### Reflected PAR vs. Time
-We see range of 0 - 169 over duration of collection. We see most of the daily high readings correspond to the tallest mounted sensors and most of the daily lows with the lowest mounted sensors. One interesting observation from this plot is specific to the daily maximum's: there is much greater variability in this metric than seen in the incident PAR plot. Several days recorded max values that are much lower. One reading corresponds with the cloudy day (May 26th) noted in the incident PAR chart, but there are several other days which are interesting and may be worth investigating.
+We see range of 0 - 175 over duration of collection. We see most of the daily high readings correspond to the tallest mounted sensors and most of the daily lows with the lowest mounted sensors. One interesting observation from this plot is specific to the daily maximum's: there is much greater variability in this metric than seen in the incident PAR plot. Several days recorded max values that are much lower. One reading corresponds with the cloudy day (May 26th) noted in the incident PAR chart, but there are several other days which are interesting and may be worth investigating.
 
 ### (d) PCA Analysis & Scree Plot
 
@@ -679,9 +667,9 @@ day_time = all %>%
 # humidity
 
 # incident par
-ggplot(day_time, aes(x=Height, y=incident_par, group = Height)) + 
-    geom_boxplot() +
-    coord_flip()
+# ggplot(day_time, aes(x=Height, y=incident_par, group = Height)) + 
+#     geom_boxplot() +
+#     coord_flip()
 
 # reflected par
 
