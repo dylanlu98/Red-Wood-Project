@@ -60,7 +60,7 @@ The main difference between the files is that the scaling/precision on voltage m
 ```{r, read-in-data, include=FALSE}
 all <- read.csv("sonoma-data-all.csv")
 log <- read.csv("sonoma-data-log.csv")
-net <- read.csv("sonoma-data-net.csv")
+#net <- read.csv("sonoma-data-net.csv")
 
 # metadata files
 dates <- read.table("sonoma-dates-formatted", sep=",", header = TRUE)   # losing some precision on epochDays
@@ -76,6 +76,7 @@ all = all %>%
     voltage > voltage_log_cutoff ~ "net",
     voltage <= voltage_log_cutoff ~ "log"
 ))
+rm(log)
 ```
 
 ```{r, network-failure, fig.cap = "Number of Entries by Epoch and Data Source"}
@@ -198,6 +199,7 @@ all = union(all, dupe_dis)
 # remove unneeded df
 rm(dupes_dis)
 rm(dupe_dis)
+rm(duplicate_entries)
 ```
 
 
@@ -340,13 +342,13 @@ all = left_join(all, locations, by="nodeid")
 
 
 ### (d - visually identify outliers for each of following: humidity, humid temp, hamatop, hamabot. Remove and comment on rationale for removing)
-Tolle mentioned two outlier related issues corresponding to humidity measurements: %RH greater than 100% and one node failing to track other measured values. 
+Tolle mentioned outlier related issues corresponding to humidity measurements where %RH was greater than 100%. 
 
-We observed similar problems in our dataset. Visually inspecting the histogram we see a number of readings over 100%, clearly indicating a problem. Measurements corresponding to these readings were excluded from analysis.
+We observed a similar problem in our dataset based on out analysis. Visually inspecting the histogram and corresponding boxplot we see a number of readings over 100%, clearly indicating the same problem. Measurements corresponding to these readings were excluded from analysis.
 
 Plotting individual nodes over time we identified nodeid 123 as the problem node (not tracking other readings) which starts to occur around epoch 5000. All sensor readings after this epoch were removed.
 
-Visually inspecting temperature, we see a large number of outliers in the boxplot. A quick google search for hottest recorded temperature in Sonoma, CA is 44 degrees Celsius. Tolle's measurement ranges for temperature indicate a max value of 32.6 degrees Celsius. Looking at a temerature vs time plot at the height level it becomes clear that temperatures recorded in the high 30s/low 40s are erros. Thus, all measurements greater than 32.6 were removed.
+Visually inspecting temperature plots, we see a large number of outliers in the boxplot. A quick google search for hottest recorded temperature in Sonoma, CA is 44 degrees Celsius. Tolle's measurement ranges for temperature indicate a max value of 32.6 degrees Celsius. Looking at a temperature vs time plot at the height level it becomes clear that temperatures recorded in the high 30s/low 40s are erros. Thus, all measurements greater than 32.6 were removed.
 
 Visually inspecting the incident par boxplot we see two distinct groups of outliers. We determined to remove the second group of outliers by enforcing a manual cutoff of < 2500.
 
@@ -361,40 +363,33 @@ all %>%
    facet_wrap(~ key, scales = "free") +
    geom_histogram()
 
+# try and facet wrap charts
+# all %>% 
+#   select(humidity, humid_temp, incident_par) %>%
+#   gather() %>%
+#   ggplot(aes(value)) + 
+#     facet_wrap(~ key, scales = "free") +
+#     geom_boxplot() +
+#     coord_flip()
+
+# try with layout
+par(mfrow = c(1,2))
+
 # remove readings with humidity > 100%
-boxplot(all$humidity, main = "humidity - with outliers")
+boxplot(all$humidity, main = "Humidity - Original ")
 all = all %>% filter(humidity <= 100)
-boxplot(all$humidity, main = "humidity")
-
-# paper mentions one node not tracking humidity with others i think nodeid 123
-all %>% filter(nodeid == 119 | nodeid == 123) %>%
-ggplot(aes(x = epoch, y = humidity, color = nodeid)) +
-  geom_line() +
-  scale_color_gradientn(colours=rainbow(2)) +
-  ggtitle("Node 119 and 123 Humidity Plots over Epoch")
-
-# remove node 123 and epoch > 5000
-all = all %>% filter((nodeid == 123 & epoch <= 5000) | (nodeid != 123))
-
-# boxplots - use quantile function to remove
-boxplot(all$reflected_par, main = "Reflected PAR")
+boxplot(all$humidity, main = "Humidity - Outliers Removed")
 
 # remove measurements based on temperature cutoff
-boxplot(all$humid_temp, main = "humid temp - including outliers")
+boxplot(all$humid_temp, main = "Temperature - Original ")
 all = all %>% filter(humid_temp <= 32.6)
-boxplot(all$humid_temp, main = "humid temp - outliers removed")
+boxplot(all$humid_temp, main = "Temperature - Outliers Removed")
 
 # remove incident par outliers
-boxplot(all$incident_par, main = "Incident PAR - with outliers")
+boxplot(all$incident_par, main = "Incident PAR - Original")
 all = all %>% filter(incident_par < 2500)
-boxplot(all$incident_par, main = "Incident PAR - without outliers")
-
-## interquartile range - prompt says to visually inspect
-# IQ_humid_temp = quantile(all$humid_temp, prob= c(0.01, 0.25, 0.75, 0.99))
-# IQR = IQ_humid_temp["75%"] - IQ_humid_temp["25%"]
-# IQ_humidity = quantile(all$humidity, prob= c(0.01, 0.25, 0.75, 0.99))
-# IQ_incident_par = quantile(all$incident_par, prob= c(0.01, 0.25, 0.75, 0.99))
-# IQ_reflected_par = quantile(all$reflected_par, prob= c(0.01, 0.25, 0.75, 0.99))
+boxplot(all$incident_par, main = "Incident PAR - Outliers Removed")
+par(mfrow = c(1,1))
 ```
 
 
@@ -536,7 +531,7 @@ ggplot(all %>% na.omit(Height), aes(x = date_concat, y = reflected_par, colour =
     ggtitle("Reflected PAR vs. Time") +
     scale_x_datetime(breaks = scales::breaks_pretty(13))
 ```
-Comment on the range, continuity and strange behaviors in these variables.
+
 #### Temperature vs. Time
 We artificially removed high temperature readings discussed earlier. We see a range of 6.78 - 32.6 degrees Celsius respectively.
 
@@ -555,22 +550,31 @@ We see range of 0 - 169 over duration of collection. We see most of the daily hi
 
 ### (d) PCA Analysis & Scree Plot
 
-```{r, pca-and-screeplot}
+```{r, pca}
 # perform pca
-pr_comp = prcomp(all %>% ungroup() %>% select(humidity, humid_temp, incident_par, reflected_par), center = TRUE, scale. = TRUE)
+pr_comp = prcomp(all %>%na.omit(Height) %>% ungroup() %>% select(humidity, humid_temp, incident_par, reflected_par, Height), center = TRUE, scale. = TRUE)
 summary(pr_comp)
 pr_comp
 
 # scree plot
 eig_values = (pr_comp$sdev)^2 
 eigs_cum <- cumsum(eig_values) /sum(eig_values)
+```
 
+```{r, screeplot, fig.cap = "PCA Scree Plot Explaining Variability}
 # may be useful for plotting
 ggplot() + geom_point(aes(x = 1:length(eig_values), y=eigs_cum)) +
-  labs(x = "PC Number (in order of eigenvalue size)", y = "fraction of total variance explained") +
-  ggtitle("Scree Plot")
+  labs(x = "PC Number (in order of eigenvalue size)", y = "Fraction of Total Variance") +
+  ggtitle("Five Dimension Scree Plot")
+```
+
+PCA was performed on the following dimensions: humdity, temperature, incident PAR, reflected PAR, and height. The Scree Plot shows the first three components explain almost 90% of the variability in the data and indicates that a lower dimensional representation is possible.
+
+```{r, lower-dim-representation}
+# plot this is there is time...project points onto PCAs
 
 ```
+
 
 *** 
 
@@ -653,7 +657,7 @@ ggplot(all, aes(x = log(reflected_par + 0.001))) +
 
 ![Original Tolle Boxplots - 3c](./images/3c_plot_pic.JPG)
 
-The boxplots from Figure 3[c] in the orginal paper are showing how the sensor measurements vary over the height of the tree. Tolle et al. are attempting to look for spatial gradients and trends by eliminating the temporal aspect of the data.
+The boxplots from Figure 3[c] in the original paper are showing how the sensor measurements vary over the height of the tree. Tolle et al. are attempting to look for spatial gradients and trends by eliminating the temporal aspect of the data.
 
 With regards to the PAR charts I don't believe these plots convey the right message. I think the author should have split up the temporal ranges included in this chart. For example, the PAR temporal range should only include daytime, when the sun is shining. Including the full temporal range adds a large number of data points with 0 light readings and effectively pulls the mass closer to zero for all readings and makes the gradient less pronounced.
 
@@ -786,33 +790,53 @@ We also believe analyzing combined yield, in addition to individual data source 
 
 ## Appendix
 
-Extra Charts:
+```{r}
+# outlier detection
 
-Duplicate record chart
-```{r, duplicate-entries-by-source, include=FALSE}
-# use primary composite key to plot duplicate readings by data source (same epoch and node id) there should only be one row per unique key in each data source
-# plot 1 showing the breakdown by frequency (n is the number of duplicated rows)
-all %>% 
-  group_by(epoch, nodeid, data_source) %>%
-  tally() %>%
-  filter(n > 1) %>%
-  ggplot(aes(n, fill = data_source)) +
-    geom_histogram(binwidth = 1) +
-    stat_bin(binwidth=1, geom="text", colour="black", size=3.5,
-           aes(label=..count.., group=data_source), position=position_stack(vjust=0.5)) +
-    ggtitle("Duplicate Entries by Data Source")
+# paper mentions one node not tracking humidity with others i think nodeid 123
+#all %>% filter(nodeid == 119 | nodeid == 123) %>%
+#ggplot(aes(x = epoch, y = humidity, color = nodeid)) +
+#  geom_line() +
+#  scale_color_gradientn(colours=rainbow(2)) +
+#  ggtitle("Node 119 and 123 Humidity Plots over Epoch")
+# remove node 123 and epoch > 5000
+#all = all %>% filter((nodeid == 123 & epoch <= 5000) | (nodeid != 123))
+
+
+## interquartile range - prompt says to visually inspect
+# IQ_humid_temp = quantile(all$humid_temp, prob= c(0.01, 0.25, 0.75, 0.99))
+# IQR = IQ_humid_temp["75%"] - IQ_humid_temp["25%"]
+# IQ_humidity = quantile(all$humidity, prob= c(0.01, 0.25, 0.75, 0.99))
+# IQ_incident_par = quantile(all$incident_par, prob= c(0.01, 0.25, 0.75, 0.99))
+# IQ_reflected_par = quantile(all$reflected_par, prob= c(0.01, 0.25, 0.75, 0.99))
+
 ```
 
 
-Histogram plots of all variables
+
+
+```{r, duplicate-entries-by-source, include=FALSE}
+# use primary composite key to plot duplicate readings by data source (same epoch and node id) there should only be one row per unique key in each data source
+# plot 1 showing the breakdown by frequency (n is the number of duplicated rows)
+# all %>% 
+#   group_by(epoch, nodeid, data_source) %>%
+#   tally() %>%
+#   filter(n > 1) %>%
+#   ggplot(aes(n, fill = data_source)) +
+#     geom_histogram(binwidth = 1) +
+#     stat_bin(binwidth=1, geom="text", colour="black", size=3.5,
+#            aes(label=..count.., group=data_source), position=position_stack(vjust=0.5)) +
+#     ggtitle("Duplicate Entries by Data Source")
+```
+
 ```{r, all-hist-plots, include=FALSE}
 # plot histograms of all numeric values
-all %>%
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) + 
-    facet_wrap(~ key, scales = "free") + 
-    geom_histogram()
+# all %>%
+#   keep(is.numeric) %>% 
+#   gather() %>% 
+#   ggplot(aes(value)) + 
+#     facet_wrap(~ key, scales = "free") + 
+#     geom_histogram()
 ```
 
 
@@ -853,7 +877,7 @@ all %>%
 #   ggtitle("No Log Transform - Incident PAR (Percentage Scale)")
 ```
 
-Dylan Date Code
+
 ```{r}
 # all.4 = na.omit(all.3)
 # missings = all.3[rowSums(is.na(all.3)) > 0, ]
