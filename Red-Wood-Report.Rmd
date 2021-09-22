@@ -317,20 +317,22 @@ total_missing_data = total_missing_data %>%
            sep = " +")
 
 # what time of day did missing measures occur
-ggplot(total_missing_data, aes(time)) +
+plot1 = ggplot(total_missing_data, aes(time)) +
     geom_bar(aes(fill = data_source)) +
-    scale_fill_brewer(palette="Blues", labels=c("Logger", "Network"))+
+    scale_fill_brewer(palette="Blues", labels=c("Logger", "Network")) +
     labs(main = "Time of Day - Missing Measurements", x = "Time of Day", fill = "Data Source")
 
 # what day did missing measures occur
 total_missing_data$date_concat = 
   as.Date(paste(total_missing_data$year, total_missing_data$month, total_missing_data$day), "%Y %b %d")
 
-ggplot(total_missing_data, aes(date_concat)) +
+plot2 = ggplot(total_missing_data, aes(date_concat)) +
     geom_bar(aes(fill = data_source), color = "gray48") +
     scale_fill_brewer(palette="Blues", labels=c("Logger", "Network"))+
     labs(main = "Day - Missing Measurements", fill = "Data Source", x = "Day") +
     scale_x_date(breaks = scales::breaks_pretty(13))
+
+grid.arrange(plot1, plot2, ncol=2)
 
 # clean up
 rm(duplicate_entries)
@@ -340,7 +342,6 @@ rm(total_missing_data)
 ```
 ### Comment on the number of missing measurements and the corresponding date/time period?
 The time of day for the missing measurements appear uniform across 24-hours. Over the course of the experiment, we see more measurement issues than at the beginning. This echos the sentiment expressed in the Tolle report.
-
 
 
 ### (c - incorporate location data from other file)
@@ -493,6 +494,7 @@ Correlation plots were created for each of the measured values which can be view
 Temperature appears to be good predictor of incident PAR. We saw positive correlations between the two variables during both time frames. Humidity displayed a negative correlation with incident PAR which is more pronounced during sunset.
 
 ### (c) Value as Time Series - Comment on range, continuity and strange behavior
+The four measured dimensions were plotted over time. To make the plots easier to comprehend the sensor heights where grouped into 10 meter interval height classes. Our analysis of each plot follows.
 
 ```{r, time-series-plots}
 # convert day
@@ -516,7 +518,6 @@ ggplot(all %>% na.omit(Height), aes(x = date_concat, y = humid_temp, colour = he
     geom_line() +
     ggtitle("Temperature vs. Time") + labs(x = "Day", y = "Temperature (\u00B0C)") +
     scale_x_datetime(breaks = scales::breaks_pretty(13))
-#+ scale_x_date(breaks = scales::breaks_pretty(13))
 
 # Humidity
 ggplot(all %>% na.omit(Height), aes(x = date_concat, y = humidity, colour = height_class)) +
@@ -554,6 +555,7 @@ We see range of 0 and 2146 over duration of collection. Sensors mounted the high
 We see range of 0 - 175 over duration of collection. We see most of the daily high readings correspond to the tallest mounted sensors and most of the daily lows with the lowest mounted sensors. One interesting observation from this plot is specific to the daily maximum's: there is much greater variability in this metric than seen in the incident PAR plot. Several days recorded max values that are much lower. One reading corresponds with the cloudy day (May 26th) noted in the incident PAR chart, but there are several other days which are interesting and may be worth investigating.
 
 ### (d) PCA Analysis & Scree Plot
+PCA was performed on the following dimensions: humidity, temperature, incident PAR, reflected PAR, and height. The Scree Plot shows the first three components explain almost 90% of the variability in the data and indicates a lower dimensional representation is possible. We discuss the lower dimension representation in interesting finding 1.
 
 ```{r, pca}
 # perform pca
@@ -572,16 +574,12 @@ ggplot() + geom_point(aes(x = 1:length(eig_values), y=eigs_cum)) +
   ggtitle("Five Dimension Scree Plot")
 ```
 
-PCA was performed on the following dimensions: humidity, temperature, incident PAR, reflected PAR, and height. The Scree Plot shows the first three components explain almost 90% of the variability in the data and indicates that a lower dimensional representation is possible.
-
-
 ## 4 Interesting Findings
 
-### Finding 1
+### Finding 1 - Lower Dimensional Height Dispersion
 
 ```{r, lower-dim-representation}
 # project points onto PCAs
-# this should be used as interesting finding #1
 scores = pr_comp$x   # score vectors
 df = data.frame(PC1 = scores[,1], PC2 = scores[,2], nodeid = all %>% na.omit(Height) %>% select(height_class))
 
@@ -594,7 +592,7 @@ ggplot(df, aes(PC1, PC2)) +
 rm(df)
 ```
 
-Here the first two principal component score vectors were plotted for each of the height classes. What's interesting is we see tight groupings for sensors mounted lower on the tree and much more variability between measurements taken higher up. We were initially suspecting the variability was due to the amount of measurements taken at each height, however looking at the table below we see the most measurements in the 40-50 meter height range, but much more variability in the 60+ meter class. Intuitively we suspect that the top of the tree presents a harsher environment (more exposed to the elements) than the base. Which could explain why we see such a wide dispersion of points at the highest points compared to the bottom.
+Here the first two principal component score vectors were plotted for each of the height classes. What's interesting is we see tight groupings for sensors mounted below 30 m and much more variability as measurements are recorded at higher elevations. We initial suspected this variability was due the sample size recorded at each height, with more samples recorded at higher levels becuase of more sensors. However, looking at the table we see the most measurements in the 40-50 meter height range, but much more variability in the 60+ meter class. Intuitively we suspect that the top of the tree presents a harsher environment that is more exposed to weather patterns than the base that is more densely protected by foliage. This explanation could explain the wide dispersion of points at heigher measurement levels.
 
 **Height Class**              **n**
 ---------------------     --------------
@@ -609,7 +607,7 @@ NA                        2,201
 
 *** 
 
-### Finding 2
+### Finding 2 - Reflected PAR Max Reading Variability
 
 Does the time of day determine the max reflected PAR?
 ```{r, height-inspection}
@@ -624,6 +622,8 @@ dtTime = as.numeric(mx_reflected_par_pts$date_concat - trunc(mx_reflected_par_pt
 hist(dtTime, title = "Time of Day - Max Reflected PAR Readings")
 
 ```
+
+
 
 
 ### Finding 3
