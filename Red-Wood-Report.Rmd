@@ -726,7 +726,7 @@ dev.off
 
 ```{r,q5b-height-value-box-plots-DL-2}
 #Use the height from paper 
-Height_from_paper = c(22.9,29.3,31.3,34.2,37.7,42.9,44.9,46.6,49.4,49.6,49.8, 50, 52.1, 53.7, 54, 54.5, 55.2, 57.8, 59.1, 60.1, 61.1, 62, 62.9, 63.5, 64.5, 65.5,66.5)
+Height_from_paper = c(22.9, 29.3, 31.3, 34.2, 37.7, 42.9, 44.9, 46.6, 49.4, 49.6, 49.8, 50, 52.1, 53.7, 54, 54.5, 55.2, 57.8, 59.1, 60.1, 61.1, 62, 62.9, 63.5, 64.5, 65.5, 66.5)
 
 day_time_for_box_plots_paper = day_time %>%
   filter(Height %in% Height_from_paper) %>% arrange(Height) %>% mutate(Height = as.factor(Height))
