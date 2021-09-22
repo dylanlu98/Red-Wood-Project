@@ -25,6 +25,7 @@ library(lubridate) # for working with dates
 library(ggplot2)  # for creating graphs
 library(scales)   # to access breaks/formatting functions
 library(gridExtra) # for arranging plots
+library(ggpubr)
 ```
 
 ## 1 Data Collection
@@ -677,7 +678,95 @@ ggplot(day_time, aes(x=Height, y=incident_par, group = Height)) +
 # reflected par
 
 ```
+```{r,q5b-height-value-box-plots-DL}
+# try from 6:00 to 20:00
+day_time = all %>%
+  filter(time >= "06" & time <= "20")
 
+# convert height to be a factor and filter out Height <=22.8 to make our figure looks better
+day_time_for_box_plots = day_time %>%
+  filter(Height >=22.8) %>% arrange(Height) %>% mutate(Height = as.factor(Height))
+
+#Create Height labels for plotting
+Height_character = as.character(unique(factor(day_time_for_box_plots$Height)))
+Height_numeric = as.numeric(Height_factor)
+
+# fix formatting for incident par boxplot and implement change for other dimensions (match paper)
+par(mfrow=c(1,4))
+
+# temperature
+temp = ggplot(day_time_for_box_plots, aes(x=humid_temp, y=Height, group = Height),) + 
+    geom_boxplot(color = "blue", outlier.shape = NA,width = 0.5,position = "dodge") + 
+    scale_y_discrete("Height(m)",breaks= Height_numeric)
+
+# humidity
+humid = ggplot(day_time_for_box_plots, aes(x=humidity, y=Height, group = Height),) + 
+    geom_boxplot(color = "blue", outlier.shape = NA,width = 0.5,position = "dodge") + 
+    scale_y_discrete("Height(m)",breaks= Height_numeric)
+
+# incident par
+incident = ggplot(day_time_for_box_plots, aes(x=incident_par, y=Height, group = Height),) + 
+    geom_boxplot(color = "blue", outlier.shape = NA,width = 0.5,position = "dodge") + 
+    scale_y_discrete("Height(m)",breaks= Height_numeric)
+
+# reflected par
+reflected = ggplot(day_time_for_box_plots, aes(x=reflected_par, y=Height, group = Height),) + 
+    geom_boxplot(color = "blue", outlier.shape = NA,width = 0.5,position = "dodge") + 
+    scale_y_discrete("Height(m)",breaks= Height_numeric)
+
+jpeg("q5b-height-value-box-plots.jpeg", width = 20, height = 12, units = 'in', res = 300)
+ggarrange(temp, humid, incident, reflected,
+                    labels = c("Temperature", "Humidity", "Incident PAR", "Reflected PAR"),
+                    ncol = 2, nrow = 2)
+dev.off
+#Create high resolution jpeg images
+#jpeg("q5b-height-value-box-plots.jpeg", width = 12, height = 8, units = 'in', res = 300)
+#dev.off
+```
+
+```{r,q5b-height-value-box-plots-DL-2}
+#Use the height from paper 
+Height_from_paper = c(22.9,29.3,31.3,34.2,37.7,42.9,44.9,46.6,49.4,49.6,49.8, 50, 52.1, 53.7, 54, 54.5, 55.2, 57.8, 59.1, 60.1, 61.1, 62, 62.9, 63.5, 64.5, 65.5,66.5)
+
+day_time_for_box_plots_paper = day_time %>%
+  filter(Height %in% Height_from_paper) %>% arrange(Height) %>% mutate(Height = as.factor(Height))
+
+#Create Height labels for plotting
+Height_character = as.character(unique(factor(Height_from_paper)))
+Height_numeric = as.numeric(Height_factor)
+
+# fix formatting for incident par boxplot and implement change for other dimensions (match paper)
+par(mfrow=c(1,4))
+
+# temperature
+temp = ggplot(day_time_for_box_plots_paper, aes(x=humid_temp, y=Height, group = Height)) + 
+    geom_boxplot(color = "blue", outlier.shape = NA,width = 0.5,position = "dodge") + 
+    scale_y_discrete("Height(m)",breaks= Height_from_paper)
+
+# humidity
+humid = ggplot(day_time_for_box_plots_paper, aes(x=humidity, y=Height, group = Height),) + 
+    geom_boxplot(color = "blue", outlier.shape = NA,width = 0.5,position = "dodge") + 
+    scale_y_discrete("Height(m)",breaks= Height_from_paper)
+
+# incident par
+incident = ggplot(day_time_for_box_plots_paper, aes(x=incident_par, y=Height, group = Height),) + 
+    geom_boxplot(color = "blue", outlier.shape = NA,width = 0.5,position = "dodge") + 
+    scale_y_discrete("Height(m)",breaks= Height_from_paper)
+
+# reflected par
+reflected = ggplot(day_time_for_box_plots_paper, aes(x=reflected_par, y=Height, group = Height),) + 
+    geom_boxplot(color = "blue", outlier.shape = NA,width = 0.5,position = "dodge") + 
+    scale_y_discrete("Height(m)",breaks= Height_from_paper)
+
+jpeg("q5b-height-value-box-plots_paper.jpeg", width = 20, height = 12, units = 'in', res = 300)
+ggarrange(temp, humid, incident, reflected,
+                    labels = c("Temperature", "Humidity", "Incident PAR", "Reflected PAR"),
+                    ncol = 2, nrow = 2)
+dev.off
+#Create high resolution jpeg images
+#jpeg("q5b-height-value-box-plots.jpeg", width = 12, height = 8, units = 'in', res = 300)
+#dev.off
+```
 
 Some statement here about how the gradients over height become more clear when we strip out the night time measurements.
 
