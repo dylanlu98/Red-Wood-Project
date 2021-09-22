@@ -600,6 +600,10 @@ variabilty of local max readings from reflected par...why is there so much varia
 ```
 
 
+```{r, interesting-finding-2_DL}
+#Can we cluster measurements by day?
+#Spread data our such that we have data from every day, and then do a clustering to see if can identify what range of date the cluster is from. 
+```
 ***
 
 ## 5 Graph Critique in the Paper
@@ -682,6 +686,7 @@ ggplot(day_time, aes(x=Height, y=incident_par, group = Height)) +
 # reflected par
 
 ```
+
 ```{r,q5b-height-value-box-plots-DL}
 # try from 6:00 to 20:00
 day_time = all %>%
