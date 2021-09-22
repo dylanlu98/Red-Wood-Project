@@ -492,7 +492,7 @@ all = all %>%
    Height > 30 & Height <= 40 ~ "30 - 40 m",
    Height > 40 & Height <= 50 ~ "40 - 50 m",
    Height > 50 & Height <= 60 ~ "50 - 60 m",
-   Height > 60  ~ ">60 m"))
+   Height > 60  ~ "60+ m"))
 
 # Temperature
 ggplot(all %>% na.omit(Height), aes(x = date_concat, y = humid_temp, colour = height_class)) +
@@ -540,7 +540,7 @@ We see range of 0 - 175 over duration of collection. We see most of the daily hi
 
 ```{r, pca}
 # perform pca
-pr_comp = prcomp(all %>%na.omit(Height) %>% ungroup() %>% select(humidity, humid_temp, incident_par, reflected_par, Height), center = TRUE, scale. = TRUE)
+pr_comp = prcomp(all %>% na.omit(Height) %>% ungroup() %>% select(humidity, humid_temp, incident_par, reflected_par, Height), center = TRUE, scale. = TRUE)
 summary(pr_comp)
 pr_comp
 
@@ -556,21 +556,65 @@ ggplot() + geom_point(aes(x = 1:length(eig_values), y=eigs_cum)) +
   ggtitle("Five Dimension Scree Plot")
 ```
 
-PCA was performed on the following dimensions: humdity, temperature, incident PAR, reflected PAR, and height. The Scree Plot shows the first three components explain almost 90% of the variability in the data and indicates that a lower dimensional representation is possible.
+PCA was performed on the following dimensions: humidity, temperature, incident PAR, reflected PAR, and height. The Scree Plot shows the first three components explain almost 90% of the variability in the data and indicates that a lower dimensional representation is possible.
 
 ```{r, lower-dim-representation}
-# plot this is there is time...project points onto PCAs
+# project points onto PCAs
+# this should be used as interesting finding #1
+scores = pr_comp$x   # score vectors
+df = data.frame(PC1 = scores[,1], PC2 = scores[,2], nodeid = all %>% na.omit(Height) %>% select(height_class))
 
+ggplot(df, aes(PC1, PC2)) +
+  geom_point(size=0.75, aes(colour = height_class), alpha = 0.8) +
+  scale_color_brewer(palette="Paired") +
+  guides(colour = guide_legend(override.aes = list(size=10))) +
+  ggtitle("Lower Dimension Representation - First Two PCs")
+
+rm(df)
 ```
+
+Here the first two principal component score vectors were plotted for each of the height classes. What's interesting is we see tight groupings for sensors mounted lower on the tree and much more variability between measurements taken higher up. We were initially suspecting the variability was due to the amount of measurements taken at each height, however looking at the table below we see the most measurements in the 40-50 meter height range, but much more variability in the 60+ meter class. Intuitively we suspect that the top of the tree presents a harsher environment (more exposed to the elements) than the base. Which could explain why we see such a wide dispersion of points at the highest points compared to the bottom.
+
+
+**Height Class**              **n**
+---------------------     --------------
+10 - 20 m                 2,638       
+20 - 30 m                 32,633
+30 - 40 m                 29,644
+40 - 50 m                 82,201
+50 - 60 m                 64,121
+60+ m                     51,494
+NA                        2,201
+---------------------     --------------
 
 
 *** 
 
 ## 4 Interesting Findings
--   Influence points. How much can the distributions be shifted by missing values (mentioned in article as future work). Does the missing data affect any of the findings?
+
+Does the time of day determine the max reflected PAR?
+```{r, height-inspection}
+mx_reflected_par_pts = all %>% na.omit(Height) %>% ungroup() %>% group_by(month, weekday, day) %>% summarize(max(reflected_par)) %>% rename("reflected_par" = "max(reflected_par)") %>%
+  inner_join(all)
+
+# this just gives me a close up of the max seen in the chart...
+plot(mx_reflected_par_pts$date_concat, mx_reflected_par_pts$reflected_par)
+
+# histogram of the reflected par max readings
+dtTime = as.numeric(mx_reflected_par_pts$date_concat - trunc(mx_reflected_par_pts$date_concat, "days"))
+hist(dtTime, title = "Time of Day - Max Reflected PAR Readings")
+
+
+
+```
+
+
 
 Can we cluster dimension measurements by sensor using kmeans? (cluster number = sensor number)
 ```{r, interesting-finding-1}
+# can we cluster measurements by sensor?
+
+
 
 ```
 
@@ -581,11 +625,6 @@ Can we cluster measurements by day?
 
 Some sort of linear model...variability of readings with height
 include height in linear model
-
-variabilty of local max readings from reflected par...why is there so much variablity in these readings vs. the incident par?
-```{r, interesting-finding-3}
-
-```
 
 
 ```{r, interesting-finding-2_DL}
