@@ -333,10 +333,10 @@ ggplot(total_missing_data, aes(date_concat)) +
     scale_x_date(breaks = scales::breaks_pretty(13))
 
 # clean up
-# rm(duplicate_entries)
-# rm(na_data)
-# rm(voltage_removed)
-# rm(total_missing_data)
+rm(duplicate_entries)
+rm(na_data)
+rm(voltage_removed)
+rm(total_missing_data)
 ```
 ### Comment on the number of missing measurements and the corresponding date/time period?
 The time of day for the missing measurements appear uniform across 24-hours. Over the course of the experiment, we see more measurement issues than at the beginning. This echos the sentiment expressed in the Tolle report.
@@ -426,38 +426,38 @@ grid.arrange(plot1, plot2, ncol=2)
 plot1 = ggplot(sunrise, aes(x=humid_temp, y=humidity) ) +
   geom_point() +
   ggtitle("Sunrise") +  theme(plot.title = element_text(hjust = 0.5)) +
-  labs(x = "Temperature", y = "Humidity")
+  labs(x = "Temperature (\u00B0C)", y = "% Humidity")
 
 plot2 = ggplot(sunset, aes(x=humid_temp, y=humidity) ) +
   geom_point() +
   ggtitle("Sunset") +  theme(plot.title = element_text(hjust = 0.5)) +
-  labs(x = "Temperature", y = "Humidity")
+  labs(x = "Temperature (\u00B0C)", y = "% Humidity")
 grid.arrange(plot1, plot2, ncol=2)
 ########### 
 
 ###########  Temp vs. Incident PAR
 plot1 = ggplot(sunrise, aes(x=incident_par, y=humid_temp) ) +
   geom_point() + theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle("Sunrise") + labs(x= "Incident PAR", y = "Temperature")
+  ggtitle("Sunrise") + labs(x= "Incident PAR (mol/m"^"2"~"/s)", y = "Temperature (\u00B0C)")
 
 plot2 = ggplot(sunset, aes(x=incident_par, y=humid_temp) ) +
   geom_point() + theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle("Sunset") + labs(x= "Incident PAR", y = "Temperature")
+  ggtitle("Sunset") + labs(x= "Incident PAR (mol/m"^"2"~"/s)", y = "Temperature (\u00B0C)")
 grid.arrange(plot1, plot2, ncol=2)
 ########### 
 
 ###########  Humidity vs. Incident PAR
 plot1 = ggplot(sunrise, aes(x=incident_par, y=humidity) ) +
   geom_point() + theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle("Sunrise") + labs(x= "Incident PAR", y = "Humidity")
+  ggtitle("Sunrise") + labs(x= "Incident PAR (mol/m"^"2"~"/s)", y = "% Humidity")
 
 plot2 = ggplot(sunset, aes(x=incident_par, y=humidity) ) +
   geom_point() + theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle("Sunset") + labs(x= "Incident PAR", y = "Humidity")
+  ggtitle("Sunset") + labs(x= "Incident PAR (mol/m"^"2"~"/s)", y = "% Humidity")
 grid.arrange(plot1, plot2, ncol=2)
 ########### 
 
-
+# Extra Charts
 ########### Sunrise charts - 5:00am to 10:00am
 # ggplot(sunrise, aes(x=incident_par, y=reflected_par) ) +
 #   geom_point() +
@@ -482,7 +482,7 @@ rm(sunrise)
 rm(sunset)
 ```
 
-Many interesting pairwise scatter plots were analyzed for trends. We highlight some of our more interesting findings below.
+Many interesting pairwise scatter plots were analyzed for trends. We highlight interesting findings below.
 
 #### Describe findings from the charts.
 Humidity vs. temperature plot reveals a relationship between the two variables as many of the points look clustered together. We see that as temperature increases, humidity decreases. This trend appears linear during sunrise, but appears exponential/polynomial during sunset.
@@ -514,26 +514,26 @@ all = all %>%
 # Temperature
 ggplot(all %>% na.omit(Height), aes(x = date_concat, y = humid_temp, colour = height_class)) +
     geom_line() +
-    ggtitle("Temperature vs. Time") +
+    ggtitle("Temperature vs. Time") + labs(x = "Day", y = "Temperature (\u00B0C)") +
     scale_x_datetime(breaks = scales::breaks_pretty(13))
 #+ scale_x_date(breaks = scales::breaks_pretty(13))
 
 # Humidity
 ggplot(all %>% na.omit(Height), aes(x = date_concat, y = humidity, colour = height_class)) +
     geom_line() +
-    ggtitle("Humidity vs. Time") +
+    ggtitle("Humidity vs. Time") +  labs(x = "Day", y = "% Humidity") +
     scale_x_datetime(breaks = scales::breaks_pretty(13))
 
 # Incident PAR
 ggplot(all %>% na.omit(Height), aes(x = date_concat, y = incident_par, colour = height_class)) +
     geom_line() +
-    ggtitle("Incident PAR vs. Time") +
+    ggtitle("Incident PAR vs. Time") +  labs(x = "Day", y = "Incident PAR (mol/m"^"2"~"/s)") +
     scale_x_datetime(breaks = scales::breaks_pretty(13))
 
 # Reflected PAR
 ggplot(all %>% na.omit(Height), aes(x = date_concat, y = reflected_par, colour = height_class)) +
     geom_line() +
-    ggtitle("Reflected PAR vs. Time") +
+    ggtitle("Reflected PAR vs. Time") +  labs(x = "Day", y = "Reflected PAR (mol/m"^"2"~"/s)") +
     scale_x_datetime(breaks = scales::breaks_pretty(13))
 ```
 
@@ -567,13 +567,17 @@ eigs_cum <- cumsum(eig_values) /sum(eig_values)
 ```
 
 ```{r, screeplot, fig.cap = "PCA Scree Plot Explaining Variability"}
-# may be useful for plotting
 ggplot() + geom_point(aes(x = 1:length(eig_values), y=eigs_cum)) +
   labs(x = "PC Number (in order of eigenvalue size)", y = "Fraction of Total Variance") +
   ggtitle("Five Dimension Scree Plot")
 ```
 
 PCA was performed on the following dimensions: humidity, temperature, incident PAR, reflected PAR, and height. The Scree Plot shows the first three components explain almost 90% of the variability in the data and indicates that a lower dimensional representation is possible.
+
+
+## 4 Interesting Findings
+
+### Finding 1
 
 ```{r, lower-dim-representation}
 # project points onto PCAs
@@ -603,10 +607,9 @@ Here the first two principal component score vectors were plotted for each of th
 NA                        2,201
 ---------------------     --------------
 
-
 *** 
 
-## 4 Interesting Findings
+### Finding 2
 
 Does the time of day determine the max reflected PAR?
 ```{r, height-inspection}
@@ -623,21 +626,7 @@ hist(dtTime, title = "Time of Day - Max Reflected PAR Readings")
 ```
 
 
-Can we cluster dimension measurements by sensor using kmeans? (cluster number = sensor number)
-```{r, interesting-finding-1}
-# can we cluster measurements by sensor?
-
-
-
-```
-
-Can we cluster measurements by day?
-```{r, interesting-finding-2}
-
-```
-
-
-### Interesting question 3 - DL
+### Finding 3
 Does the height determine the humidity and temperature during day time?
 ```{r, interesting-finding-3 - DL}
 # try from 6:00 to 20:00
@@ -742,6 +731,7 @@ day_time_for_box_plots = day_time %>%
 
 #Create Height labels for plotting
 Height_character = as.character(unique(factor(day_time_for_box_plots$Height)))
+Height_factor = unique(factor(day_time_for_box_plots$Height))
 Height_numeric = as.numeric(Height_factor)
 
 # fix formatting for incident par boxplot and implement change for other dimensions (match paper)
