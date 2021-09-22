@@ -636,13 +636,36 @@ Can we cluster measurements by day?
 
 Some sort of linear model...variability of readings with height
 include height in linear model
+### Interesting question 3 - DL
+Does the height determine the humidity and temperature during day time?
+```{r, interesting-finding-3 - DL}
+# try from 6:00 to 20:00
+day_time = all %>%
+  filter(time >= "06" & time <= "20")
 
+# convert height to be a factor and filter out Height <=22.8 to make our figure looks better
+day_time_for_box_plots = day_time %>%
+  filter(Height >=22.8) %>% arrange(Height) %>% mutate(Height = as.factor(Height))
 
-```{r, interesting-finding-2_DL}
-#Can we cluster measurements by day?
-#Spread data our such that we have data from every day, and then do a clustering to see if can identify what range of date the cluster is from. 
+#Create Height labels for plotting
+Height_character = as.character(unique(factor(day_time_for_box_plots$Height)))
+Height_numeric = as.numeric(Height_character)
+# temperature
+temp = ggplot(day_time_for_box_plots, aes(x=humid_temp, y=Height, group = Height),) + 
+    geom_boxplot(color = "blue", outlier.shape = NA,width = 0.5,position = "dodge") + 
+    scale_y_discrete("Height(m)",breaks= Height_numeric)
+
+# humidity
+humid = ggplot(day_time_for_box_plots, aes(x=humidity, y=Height, group = Height),) + 
+    geom_boxplot(color = "blue", outlier.shape = NA,width = 0.5,position = "dodge") + 
+    scale_y_discrete("Height(m)",breaks= Height_numeric)
+
+ggarrange(temp, humid,
+                    labels = c("Temperature", "Humidity", "Incident PAR", "Reflected PAR"),
+                    ncol = 1, nrow = 2)
 ```
-***
+
+Our hypothesis is that the temperature and humidity measured should be lower at the bottom of the red wood during day time. The explanation is that the top of the read wood receive a larger amount of incident PAR and reflective PAR, and therefore have more energy and higher temperature. Correspondingly, The higher the temperature, the faster the water vapors, which leads to a lower humidity. However, The stacked box plot based on height during day time (6am-8pm) shows that the humidity and temperature do not vary significantly as height increases during the day time. Our findings correspond to the findings of Tolle (Tolle,2005). The stacked box plot from Tolle shows that the red wood has a consistent humidity and temperature through out the day and night. In conclusion, we suppose that red woods have a spacial homeostasis mechanism that regulates its temperature and humidity.It would be an interesting research topic to find out the working principle of this homeostasis.
 
 ## 5 Graph Critique in the Paper
 ### Log Transform of Histograms
@@ -668,6 +691,7 @@ ggplot(all, aes(x = log(incident_par + 0.001))) +
   labs(title = 'Incident PAR - Log Scale') +
   xlab(expression('ln(micromol/m'^2*'/s)')) + 
   ylab("Percentage of Readings")
+
 
 ```
 Both log charts visually convey the long tail better than the non-log counter-parts. In fact, the log scale displays a bimodal distributions that could be interpreted as light levels during the day and at night.
@@ -791,9 +815,6 @@ ggarrange(temp, humid, incident, reflected,
                     labels = c("Temperature", "Humidity", "Incident PAR", "Reflected PAR"),
                     ncol = 2, nrow = 2)
 dev.off
-#Create high resolution jpeg images
-#jpeg("q5b-height-value-box-plots.jpeg", width = 12, height = 8, units = 'in', res = 300)
-#dev.off
 ```
 
 Some statement here about how the gradients over height become more clear when we strip out the night time measurements.
