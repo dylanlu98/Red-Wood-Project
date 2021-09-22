@@ -627,7 +627,7 @@ hist(dtTime, title = "Time of Day - Max Reflected PAR Readings")
 
 
 ### Finding 3
-Does the height determine the humidity and temperature during day time?
+Our question is does the height determine the humidity and temperature during day time?
 ```{r, interesting-finding-3 - DL}
 # try from 6:00 to 20:00
 day_time = all %>%
@@ -650,11 +650,13 @@ humid = ggplot(day_time_for_box_plots, aes(x=humidity, y=Height, group = Height)
     geom_boxplot(color = "blue", outlier.shape = NA,width = 0.5,position = "dodge") + 
     scale_y_discrete("Height(m)",breaks= Height_numeric)
 
+jpeg("q4-interesting finding 3-height-value-box-plots.jpeg", width = 20, height = 12, units = 'in', res = 300)
 ggarrange(temp, humid,
                     labels = c("Temperature", "Humidity", "Incident PAR", "Reflected PAR"),
                     ncol = 1, nrow = 2)
+dev.off
 ```
-
+![Box plot of humidity and temperature along heights](./images/q4-interesting finding 3-height-value-box-plots.jpeg)
 Our hypothesis is that the temperature and humidity measured should be lower at the bottom of the red wood during day time. The explanation is that the top of the read wood receive a larger amount of incident PAR and reflective PAR, and therefore have more energy and higher temperature. Correspondingly, The higher the temperature, the faster the water vapors, which leads to a lower humidity. However, The stacked box plot based on height during day time (6am-8pm) shows that the humidity and temperature do not vary significantly as height increases during the day time. Our findings correspond to the findings of Tolle (Tolle,2005). The stacked box plot from Tolle shows that the red wood has a consistent humidity and temperature through out the day and night. In conclusion, we suppose that red woods have a spacial homeostasis mechanism that regulates its temperature and humidity.It would be an interesting research topic to find out the working principle of this homeostasis.
 
 ## 5 Graph Critique in the Paper
@@ -719,8 +721,7 @@ With regards to the PAR charts I don't believe these plots convey the right mess
 
 We plotted the charts only considering daylight hours.
 
-
-```{r,q5b-height-value-box-plots-DL}
+```{r,q5b-height-value-box-plots}
 # try from 6:00 to 20:00
 day_time = all %>%
   filter(time >= "06" & time <= "20")
@@ -767,6 +768,10 @@ dev.off
 #dev.off
 ```
 
+![Modified Stacked Boxplots q5b](./images/q5b-height-value-box-plots_paper.jpeg)
+
+Some statement here about how the gradients over height become more clear when we strip out the night time measurements.
+
 ```{r,q5b-height-value-box-plots-DL-2}
 #Use the height from paper 
 Height_from_paper = c(22.9, 29.3, 31.3, 34.2, 37.7, 42.9, 44.9, 46.6, 49.4, 49.6, 49.8, 50, 52.1, 53.7, 54, 54.5, 55.2, 57.8, 59.1, 60.1, 61.1, 62, 62.9, 63.5, 64.5, 65.5, 66.5)
@@ -807,8 +812,6 @@ ggarrange(temp, humid, incident, reflected,
                     ncol = 2, nrow = 2)
 dev.off
 ```
-
-Some statement here about how the gradients over height become more clear when we strip out the night time measurements.
 
 
 ![Original Tolle Boxplots - 3d](./images/3d_plot_pic.JPG)
