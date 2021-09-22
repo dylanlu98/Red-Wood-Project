@@ -395,15 +395,13 @@ par(mfrow = c(1,1))
 
 
 ### (e bonus - discuss other possible outliers and explain reason why it is better to remove them than to keep)
-As we noted above, we found a large number of duplicate entries from both measurement sources. These duplicated entries were removed to prevent over-weighting with additional measures. The incident PAR boxplot indicates a large number of potential outliers even after initial cut-off filtering. However, we decided to include them in analysis because we believed the nighttime 0 PAR readings were skewing quantiles closer towards 0. We also are not familiar with the flux units on PAR dimensions which contributed to inclusion.
+As we noted above, we found a large number of duplicate entries from both measurement sources. These duplicated entries were removed to prevent over-weighting with additional measures. The incident PAR boxplot indicates a large number of potential outliers even after initial cut-off filtering. However, we decided to include them in analysis because we believed the nighttime 0 PAR readings were skewing quantiles closer towards 0. We also are not familiar with the flux units on PAR dimensions which contributed to inclusion of remaining points.
 
 ***
 
 ## 3 Data Exploration
 ### (a)
-We decided to look at two distinct time periods, sunrise and sunset, as we believed they presented the most dynamic conditions to explore potential correlations. Would correlations observed during one event also manifest during the other? Researching sunrise and sunset times in Sonoma, CA during the months of the study lead us to select 5-hour intervals encompassing both astrological events.
-
-source: https://sunrise-sunset.org/us/sonoma-ca/2004/6
+For pairwise analysis we decided to look at two distinct time periods, sunrise and sunset, as we believed they presented the most dynamic conditions to explore potential correlations. Would trends observed during one time period also manifest during the other? Researching sunrise and sunset times in Sonoma, CA during the months of the study lead us to select 5-hour intervals encompassing both astrological events, seen below in the table.
 
 **Astrological Event**    **Start Time**      **End Time**
 ---------------------     --------------      --------------
@@ -412,68 +410,79 @@ Sunset                    4:00pm              9:00pm
 ---------------------     --------------      --------------
 
 ```{r, pairwise-scatterplots}
-## only want one measurement per distinct time period, irrespective of the source...
-## perform something similar to the dupe check above
-
 # grab distinct time intervals
 sunrise = all %>% filter(time >= "05:00" & time <= "10")
 sunset = all %>% filter(time >= "16" & time <= "21")
 
 # ggcorr(all[c("humidity","humid_temp","incident_par", "reflected_par")], method = c("everything", "pearson")) +
 #   labs(title = "Correlation Map - All Time Periods")
-ggcorr(sunrise[c("humidity","humid_temp","incident_par", "reflected_par")], method = c("everything", "pearson")) +
-  labs(title = "Correlation Map - Sunrise")
-ggcorr(sunset[c("humidity","humid_temp","incident_par", "reflected_par")], method = c("everything", "pearson")) +
-  labs(title = "Correlation Map - Sunset")
+plot1 = ggcorr(sunrise[c("humidity","humid_temp","incident_par", "reflected_par")], method = c("everything", "pearson")) +
+  labs(title = "Correlation Map - Sunrise") + theme(legend.position = "none") 
+plot2 = ggcorr(sunset[c("humidity","humid_temp","incident_par", "reflected_par")], method = c("everything", "pearson")) +
+  labs(title = "Correlation Map - Sunset") + theme(legend.position = "none") 
+grid.arrange(plot1, plot2, ncol=2)
+
+###########  Humidity vs. Temp
+plot1 = ggplot(sunrise, aes(x=humid_temp, y=humidity) ) +
+  geom_point() +
+  ggtitle("Sunrise") +  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(x = "Temperature", y = "Humidity")
+
+plot2 = ggplot(sunset, aes(x=humid_temp, y=humidity) ) +
+  geom_point() +
+  ggtitle("Sunset") +  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(x = "Temperature", y = "Humidity")
+grid.arrange(plot1, plot2, ncol=2)
+########### 
+
+###########  Temp vs. Incident PAR
+plot1 = ggplot(sunrise, aes(x=incident_par, y=humid_temp) ) +
+  geom_point() + theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle("Sunrise") + labs(x= "Incident PAR", y = "Temperature")
+
+plot2 = ggplot(sunset, aes(x=incident_par, y=humid_temp) ) +
+  geom_point() + theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle("Sunset") + labs(x= "Incident PAR", y = "Temperature")
+grid.arrange(plot1, plot2, ncol=2)
+########### 
+
+###########  Humidity vs. Incident PAR
+plot1 = ggplot(sunrise, aes(x=incident_par, y=humidity) ) +
+  geom_point() + theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle("Sunrise") + labs(x= "Incident PAR", y = "Humidity")
+
+plot2 = ggplot(sunset, aes(x=incident_par, y=humidity) ) +
+  geom_point() + theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle("Sunset") + labs(x= "Incident PAR", y = "Humidity")
+grid.arrange(plot1, plot2, ncol=2)
+########### 
+
+
 ########### Sunrise charts - 5:00am to 10:00am
-## value dimension only
-ggplot(sunrise, aes(x=humid_temp, y=humidity) ) +
-  geom_point() +
-  ggtitle("Humidity vs. Temperature - Sunrise")
-
-ggplot(sunrise, aes(x=incident_par, y=humidity) ) +
-  geom_point() +
-  ggtitle("Humidity vs. Incident PAR - Sunrise")
-
-ggplot(sunrise, aes(x=incident_par, y=humid_temp) ) +
-  geom_point() +
-  ggtitle("Temperature vs. Incident PAR - Sunrise")
-
-ggplot(sunrise, aes(x=incident_par, y=reflected_par) ) +
-  geom_point() +
-  ggtitle("Reflected PAR vs. Incident PAR - Sunrise")
-
-## height
-ggplot(sunrise, aes(x=incident_par, y=Height) ) +
-  geom_point() +
-  ggtitle("Height vs. Incident PAR - Sunrise")
-
-
-########### Sunset charts - 4:00pm to 9:00pm (16:00 - 21:00)
-ggplot(sunset, aes(x=humid_temp, y=humidity) ) +
-  geom_point() +
-  ggtitle("Humidity vs. Temperature - Sunset")
-
-ggplot(sunset, aes(x=incident_par, y=humidity) ) +
-  geom_point() +
-  ggtitle("Humidity vs. Incident PAR - Sunset")
-
-ggplot(sunset, aes(x=incident_par, y=humid_temp) ) +
-  geom_point() +
-  ggtitle("Temperature vs. Incident PAR - Sunset")
-
-ggplot(sunset, aes(x=incident_par, y=reflected_par) ) +
-  geom_point() +
-  ggtitle("Reflected PAR vs. Incident PAR - Sunset")
-
-## height
-ggplot(sunset, aes(x=incident_par, y=Height) ) +
-  geom_point() +
-  ggtitle("Height vs. Incident PAR - Sunset")
+# ggplot(sunrise, aes(x=incident_par, y=reflected_par) ) +
+#   geom_point() +
+#   ggtitle("Reflected PAR vs. Incident PAR - Sunrise")
+# 
+# ## height
+# ggplot(sunrise, aes(x=incident_par, y=Height) ) +
+#   geom_point() +
+#   ggtitle("Height vs. Incident PAR - Sunrise")
+# 
+# ########### Sunset charts - 4:00pm to 9:00pm (16:00 - 21:00)
+# ggplot(sunset, aes(x=incident_par, y=reflected_par) ) +
+#   geom_point() +
+#   ggtitle("Reflected PAR vs. Incident PAR - Sunset")
+# 
+# ## height
+# ggplot(sunset, aes(x=incident_par, y=Height) ) +
+#   geom_point() +
+#   ggtitle("Height vs. Incident PAR - Sunset")
 
 rm(sunrise)
 rm(sunset)
 ```
+
+Many interesting pairwise scatter plots were analyzed for trends. We highlight some of our more interesting findings below.
 
 #### Describe findings from the charts.
 Humidity vs. temperature plot reveals a relationship between the two variables as many of the points look clustered together. We see that as temperature increases, humidity decreases. This trend appears linear during sunrise, but appears exponential/polynomial during sunset.
@@ -481,15 +490,11 @@ Humidity vs. temperature plot reveals a relationship between the two variables a
 Correlation plots were created for each of the measured values which can be viewed as proxies for scatter plot relationships. Highlights from these figures include a strong positive correlation between incident and reflected PAR and a negative correlation between humidity and temperature. All correlations appear magnified (daker colors) during sunset indicating strong relationships.
 
 ### (b) Any predictors associated with Incident PAR. If so explain the relationship.
-Temperature appears to be good predictor of incident PAR. We saw positive correlations between the two variables during both time frames.
-
-Humidity displayed a negative correlation with incident PAR which is more pronounced during sunset.
+Temperature appears to be good predictor of incident PAR. We saw positive correlations between the two variables during both time frames. Humidity displayed a negative correlation with incident PAR which is more pronounced during sunset.
 
 ### (c) Value as Time Series - Comment on range, continuity and strange behavior
 
 ```{r, time-series-plots}
-# (Temperature, Relative Humidity, Incident PAR and Reflected PAR)
-
 # convert day
 all$date_concat =
   as.Date(paste(all$year, all$month, all$day), "%Y %b %d")
@@ -587,7 +592,6 @@ rm(df)
 
 Here the first two principal component score vectors were plotted for each of the height classes. What's interesting is we see tight groupings for sensors mounted lower on the tree and much more variability between measurements taken higher up. We were initially suspecting the variability was due to the amount of measurements taken at each height, however looking at the table below we see the most measurements in the 40-50 meter height range, but much more variability in the 60+ meter class. Intuitively we suspect that the top of the tree presents a harsher environment (more exposed to the elements) than the base. Which could explain why we see such a wide dispersion of points at the highest points compared to the bottom.
 
-
 **Height Class**              **n**
 ---------------------     --------------
 10 - 20 m                 2,638       
@@ -619,7 +623,6 @@ hist(dtTime, title = "Time of Day - Max Reflected PAR Readings")
 ```
 
 
-
 Can we cluster dimension measurements by sensor using kmeans? (cluster number = sensor number)
 ```{r, interesting-finding-1}
 # can we cluster measurements by sensor?
@@ -633,8 +636,7 @@ Can we cluster measurements by day?
 
 ```
 
-Some sort of linear model...variability of readings with height
-include height in linear model
+
 ### Interesting question 3 - DL
 Does the height determine the humidity and temperature during day time?
 ```{r, interesting-finding-3 - DL}
