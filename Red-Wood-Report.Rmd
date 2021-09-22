@@ -327,8 +327,9 @@ total_missing_data$date_concat =
   as.Date(paste(total_missing_data$year, total_missing_data$month, total_missing_data$day), "%Y %b %d")
 
 ggplot(total_missing_data, aes(date_concat)) +
-    geom_bar(aes(fill = data_source)) +
-    ggtitle("Day - Missing Measurements") +
+    geom_bar(aes(fill = data_source), color = "gray48") +
+    scale_fill_brewer(palette="Blues", labels=c("Logger", "Network"))+
+    labs(main = "Day - Missing Measurements", fill = "Data Source", x = "Day") +
     scale_x_date(breaks = scales::breaks_pretty(13))
 
 # clean up
@@ -338,7 +339,7 @@ ggplot(total_missing_data, aes(date_concat)) +
 # rm(total_missing_data)
 ```
 ### Comment on the number of missing measurements and the corresponding date/time period?
-The time of day for the missing measurements appear uniform across the 24-hour day, however there is a large spike at XXX. Over the course of the experiment, we see more measurement issues than at the beginning which echos the sentiment expressed in the Tolle report.
+The time of day for the missing measurements appear uniform across 24-hours. Over the course of the experiment, we see more measurement issues than at the beginning. This echos the sentiment expressed in the Tolle report.
 
 
 
@@ -394,9 +395,7 @@ par(mfrow = c(1,1))
 
 
 ### (e bonus - discuss other possible outliers and explain reason why it is better to remove them than to keep)
-As we noted above, we found a large number of duplicate entries from both measurement sources. These duplicated entries were removed to prevent overweighting distributions. The incident PAR boxplot indicated a large number of potential outliers even after initial removal. However we decided to include them in anaylsis because we felt like the nighttime 0 PAR readings were skewing the quantiles closer towards 0. We also are not familiar with the flux units on the dimension and did not feel that we possessed eough expertise to make a judgement call one way or the other.
-
-NaN issue (all rows are blank).
+As we noted above, we found a large number of duplicate entries from both measurement sources. These duplicated entries were removed to prevent over-weighting with additional measures. The incident PAR boxplot indicates a large number of potential outliers even after initial cut-off filtering. However, we decided to include them in analysis because we believed the nighttime 0 PAR readings were skewing quantiles closer towards 0. We also are not familiar with the flux units on PAR dimensions which contributed to inclusion.
 
 ***
 
