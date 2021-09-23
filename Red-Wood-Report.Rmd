@@ -713,13 +713,10 @@ ggarrange(temp_class, humid_class,
 dev.off
 ```
 
-![Modified Stacked Boxplots q5b](./images/q4-interesting findings-3.jpeg)
+![Interesting finding 3](./images/q4-interesting findings-3.jpeg)
+
 
 Our hypothesis is that the temperature measured should be lower at the bottom of the red wood during day time and it should have a positive relationship with height. The humidity measured would be vice versa and have a negative relationship with hight. The explanation is that the top of the red wood receives a larger amount of incident PAR and reflective PAR, and therefore have more energy and higher temperature. Correspondingly, The higher the temperature, the faster the water vapors, which leads to a lower humidity. The stacked box plot based on height during day time (6am-8pm) confirms our hypothesis. The 20-30 m range shows lower mean temperature and higher mean humidity. However it is interesting to notice that except in the 20-30 m range, the temperature do not vary significantly in the 30-60m range. The linear relationships we assume are not supported by our data. Our findings correspond to the findings of Tolle (Tolle,2005). The stacked box plot from Tolle shows that the middle part of the red wood has a comparative consistent temperature through out the day and night. In conclusion, we suppose that red woods have a spacial homeostasis mechanism that regulates its temperature and humidity in the middle part.It would be an interesting research topic to find out the working principle of this homeostasis.
-=======
-
-Our hypothesis is that the temperature and humidity measured should be lower at the bottom of the red wood during day time. The explanation is that the top of the read wood receive a larger amount of incident PAR and reflective PAR, and therefore have more energy and higher temperature. Correspondingly, The higher the temperature, the faster the water vapors, which leads to a lower humidity. However, The stacked box plot based on height during day time (6am-8pm) shows that the humidity and temperature do not vary significantly as height increases during the day time. Our findings correspond to the findings of Tolle (Tolle,2005). The stacked box plot from Tolle shows that the red wood has a consistent humidity and temperature through out the day and night. In conclusion, we suppose that red woods have a spacial homeostasis mechanism that regulates its temperature and humidity.It would be an interesting research topic to find out the working principle of this homeostasis.
->>>>>>> 24b760e04661b27d0178c0044350c99a20ed82a2
 
 ## 5 Graph Critique in the Paper
 ### (a - Log Transform of Histograms)
