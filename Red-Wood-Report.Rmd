@@ -68,7 +68,7 @@ dates <- read.table("sonoma-dates-formatted", sep=",", header = TRUE)   # losing
 ```
 
 
-### (a - relevant histograms)
+### (a - Relevant Histograms)
 ```{r, hist-of-variables}
 # add data source column indicating file source for direct hist comparison
 voltage_log_cutoff = max(log$voltage)
@@ -242,7 +242,7 @@ all = all %>%
   filter(voltage >= 2.4 & voltage <= 3)
 ```
 
-### (b - remove missing data)
+### (b - Remove Missing Data)
 
 ```{r, remove-na-values}
 # rows where one measure is na means all rows are na
@@ -360,7 +360,7 @@ rm(total_missing_data)
 The time of day for the missing measurements appear uniform across 24-hours. Over the course of the experiment, we see more measurement issues than at the beginning. This echos the sentiment expressed in the Tolle report.
 
 
-### (c - incorporate location data from other file)
+### (c - Incorporate Location Data)
 After we joined the location data, we have 15 variables.
 ```{r, incorporate-location-data}
 locations <- read.table(file = "mote-location-data.txt", header = TRUE, sep = ",")
@@ -370,7 +370,7 @@ all = left_join(all, locations, by="nodeid")
 ```
 
 
-### (d - visually identify outliers)
+### (d - Visually Identify Outliers)
 Tolle mentioned outlier related issues corresponding to humidity measurements where %humidity was greater than 100%. We observed a similar problem in our dataset. Visually inspecting the histogram we see a number of readings over 100% threshold, which were excluded from analysis. Visually inspecting temperature plots, we saw a large number of outliers. A quick google search for the hottest recorded temperature in Sonoma, CA revealed 44 degrees Celsius, much lower than the 100+ degree points indicated on the plots. Tolle's max temperature reading was 32.6 degrees and because we are unfamilar with the climate in the geographic region we decided to use this as our cutoff filter. All measurements greater than 32.6 were removed. The incident par histogram shows a long tail distribution. In the boxplot we see two distinct groups of outliers separated by almost 1000 units. We determined to remove the second group by enforcing a manual cutoff of < 2500 because it seemed to represent sensor failure due to the low number of points.
 
 ```{r, facet-hist-plots-outliers, fig.height = 5, fig.width = 5, fig.align="center"}
@@ -403,18 +403,19 @@ all = all %>% filter(humid_temp <= 32.6)
 #boxplot(all$humid_temp, main = "Temp. - Outliers Removed", ylab = "\u00B0C")
 
 # remove incident par outliers
-boxplot(all$incident_par, main = "Inci. PAR - Original", ylab = expression(mu~ "mol/m"^"2"~"/s"))
+par(cex.main=0.75)
+boxplot(all$incident_par, main = "Incident PAR - Original")
 all = all %>% filter(incident_par < 2500)
-boxplot(all$incident_par, main = "Inci. PAR - Outliers Removed", ylab = expression(mu~ "mol/m"^"2"~"/s"))
+boxplot(all$incident_par, main = "Incident PAR - Outliers Removed")
 par(mfrow = c(1,1))
 ```
 
-### (e - discuss other possible outliers and explain)
+### (e - Additional Outliers)
 As we noted above, we found a large number of duplicate entries from both measurement sources. These duplicated entries were removed to prevent over-weighting with additional measures. The incident PAR boxplot indicates a large number of potential outliers even after initial cut-off filtering. However, we decided to include them in analysis because we believed the nighttime 0 PAR readings were skewing quantiles closer towards 0. We also are not familiar with the flux units on PAR dimensions which contributed to inclusion of remaining points.
 
 
 ## 3 Data Exploration
-### (a)
+### (a - Pairwise Scatter)
 For pairwise analysis we decided to look at two distinct time periods, sunrise and sunset, as we believed they presented the most dynamic conditions to explore potential correlations. Would trends observed during one time period also manifest during the other? Researching sunrise and sunset times in Sonoma, CA during the months of the study lead us to select 5-hour intervals encompassing both astrological events. Sunrise: 5:00am - 10:00am and Sunset: 4:00pm - 9:00pm
 
 <!-- **Astrological Event**    **Start Time**      **End Time** -->
@@ -434,13 +435,13 @@ sunset = all %>% filter(time >= "16" & time <= "21")
 #   labs(title = "Correlation Map - All Time Periods")
 plot1 = ggcorr(sunrise[c("humidity","humid_temp","incident_par", "reflected_par")],hjust = 0.65, size = 2.5,
                method = c("everything", "pearson")) +
-  labs(title = "Correlation Map - Sunrise") + theme(legend.position = "none") +
-  theme(plot.title = element_text(size=11,face="bold"))
+  labs(title = "Sunrise") + theme(legend.position = "none") +
+  theme(plot.title = element_text(size=10,face="bold"))
 
 plot2 = ggcorr(sunset[c("humidity","humid_temp","incident_par", "reflected_par")], hjust = 0.65, size = 2.5,
                method = c("everything", "pearson")) +
-  labs(title = "Correlation Map - Sunset") + theme(legend.position = "none") +
-  theme(plot.title = element_text(size=11,face="bold"))
+  labs(title = "Sunset") + theme(legend.position = "none") +
+  theme(plot.title = element_text(size=10,face="bold"))
 grid.arrange(plot1, plot2, ncol=2)
 ```
 
@@ -506,10 +507,10 @@ Humidity vs. temperature plot reveals a relationship between the two variables a
 
 Correlation plots were created for each of the measured values which can be viewed as proxies for scatter plot relationships. Highlights from these figures include a strong positive correlation between incident and reflected PAR and a negative correlation between humidity and temperature. All correlations appear magnified (daker colors) during sunset indicating strong relationships.
 
-### (b) Any predictors associated with Incident PAR. If so explain the relationship.
+### (b - Incident PAR Association)
 Temperature appears to be good predictor of incident PAR. We saw positive correlations between the two variables during both time frames. Humidity displayed a negative correlation with incident PAR which is more pronounced during sunset.
 
-### (c) Value as Time Series - Comment on range, continuity and strange behavior
+### (c - Time Series)
 The four measured dimensions were plotted over time. To make the plots easier to comprehend the sensor heights where grouped into 10 meter interval height classes. Our analysis of each plot follows.
 
 ```{r, time-series-conversions}
@@ -576,7 +577,7 @@ One interesting empirical note, we wee a local temperature max around May 31st t
 #### Humidity vs. Time
 Humidity readings were artificially capped at 0% and 100% respectively. We see a range of 16.3% - 100% over the duration of collection. All sensors tracked the same general trend irrespective of sensor height which indicates no or weak relationship between height and humidity. One interesting thing manifested in this chart is around May 31st where we see humdity drop to a local min before increasing back up. This corresponds with the temperature increase we observed over the same temporal domain.
 
-```{r, smoosh-time-plots-work,  fig.height = 7, fig.width = 7, fig.align="center"}
+```{r, smoosh-time-plots-work,  fig.height = 7, fig.width = 9, fig.align="center"}
 #grid.arrange(plot1, plot2, plot3, plot4, ncol=2)
 ggarrange(plot1, plot2, plot3, plot4, ncol=2, nrow=2, common.legend = TRUE, legend="bottom")
 ```
@@ -587,7 +588,7 @@ We see range of 0 and 2146 over duration of collection. Sensors mounted the high
 #### Reflected PAR vs. Time
 We see range of 0 - 175 over duration of collection. We see most of the daily high readings correspond to the tallest mounted sensors and most of the daily lows with the lowest mounted sensors. One interesting observation from this plot is specific to the daily maximum's: there is much greater variability in this metric than seen in the incident PAR plot. Several days recorded max values that are much lower. One reading corresponds with the cloudy day (May 26th) noted in the incident PAR chart, but there are several other days which are interesting and may be worth investigating.
 
-### (d) PCA Analysis & Scree Plot
+### (d - PCA Analysis & Scree Plot)
 PCA was performed on the following dimensions: humidity, temperature, incident PAR, reflected PAR, and height. The Scree Plot shows the first three components explain almost 90% of the variability in the data and indicates a lower dimensional representation is possible. We discuss the lower dimension representation in interesting finding 1.
 
 ```{r, pca}
@@ -632,16 +633,21 @@ rm(df)
 
 Here the first two principal component score vectors were plotted for each of the height classes. What's interesting is we see tight groupings for sensors mounted below 30 m and much more variability as measurements are recorded at higher elevations. We initial suspected this variability was due the sample size recorded at each height, with more samples recorded at higher levels becuase of more sensors. However, looking at the table we see the most measurements in the 40-50 meter height range, but much more variability in the 60+ meter class. Intuitively we suspect that the top of the tree presents a harsher environment that is more exposed to weather patterns than the base that is more densely protected by foliage. This explanation could explain the wide dispersion of points at heigher measurement levels.
 
-**Height Class**              **n**
----------------------     --------------
-10 - 20 m                 2,638       
-20 - 30 m                 32,633
-30 - 40 m                 29,644
-40 - 50 m                 82,201
-50 - 60 m                 64,121
-60+ m                     51,494
-NA                        2,201
----------------------     --------------
+<!-- **Height Class**              **n** -->
+<!-- ---------------------     -------------- -->
+<!-- 10 - 20 m                 2,638        -->
+<!-- 20 - 30 m                 32,633 -->
+<!-- 30 - 40 m                 29,644 -->
+<!-- 40 - 50 m                 82,201 -->
+<!-- 50 - 60 m                 64,121 -->
+<!-- 60+ m                     51,494 -->
+<!-- NA                        2,201 -->
+<!-- ---------------------     -------------- -->
+
+**NA**    **10 - 20 m**    **20 - 30 m**    **30 - 40 m**    **40 - 50 m**    **50 - 60 m**    **60+ m**
+------    -------------    -------------    -------------    -------------    -------------    ---------
+2,201     2,638            32,633           29,644           82,201           64,121           51,494
+------    -------------    -------------    -------------    -------------    -------------    ---------
 
  
 ### Finding 2 - Reflected PAR Max Reading Variability
@@ -656,7 +662,7 @@ mx_reflected_par_pts = mx_reflected_par_pts %>%
   mutate(timeboundary = case_when(time >= "16:00:00" & time <= "17:00:00" ~ TRUE, TRUE ~ FALSE))
 ```
 
-```{r, fig.height = 2, fig.width = 5, fig.align="center"}
+```{r, fig.height = 3, fig.width = 5, fig.align="center"}
 ggplot(mx_reflected_par_pts, aes(date_concat, reflected_par, color = timeboundary)) + 
   geom_point() + 
   labs(title = "Maximum Reflected PAR", x = "Day", y = "Reflected PAR (mol/m"^"2"~"/s)", color = "Time Within 16:00 - 17:00") +
@@ -707,7 +713,7 @@ How much does the humidity and temperature vary with height during the day?
 Our hypothesis is that the temperature and humidity measured should be lower at the bottom of the red wood during day time. The explanation is that the top of the read wood receive a larger amount of incident PAR and reflective PAR, and therefore have more energy and higher temperature. Correspondingly, The higher the temperature, the faster the water vapors, which leads to a lower humidity. However, The stacked box plot based on height during day time (6am-8pm) shows that the humidity and temperature do not vary significantly as height increases during the day time. Our findings correspond to the findings of Tolle (Tolle,2005). The stacked box plot from Tolle shows that the red wood has a consistent humidity and temperature through out the day and night. In conclusion, we suppose that red woods have a spacial homeostasis mechanism that regulates its temperature and humidity.It would be an interesting research topic to find out the working principle of this homeostasis.
 
 ## 5 Graph Critique in the Paper
-### Log Transform of Histograms
+### (a - Log Transform of Histograms)
 The incident and reflected PAR histograms from Tolle et al. (figure 3a) have long tails and with large numbers of observations around 0 which make the charts hard to discern. We present this data after taking a log transform of the observations and present the results side-by-side with the initial chart versions (non-log scale). 
 ```{r, 5a-incident-charts}
 # incident PAR charts
@@ -730,7 +736,7 @@ ggplot(all, aes(x = log(incident_par + 0.001))) +
   geom_histogram(aes(y = (..count..)/sum(..count..)), binwidth = .5) +
   scale_y_continuous(labels = scales::percent_format()) +
   labs(title = 'Incident PAR - Log Scale') +
-  xlab(expression('ln(micromol/m'^2*'/s)')) + 
+  xlab(expression('Log Incident PAR')) + 
   ylab("Percentage of Readings") +
   theme(plot.title = element_text(size=11,face="bold"))
 ```
@@ -757,13 +763,13 @@ ggplot(all, aes(x = log(reflected_par + 0.001))) +
   geom_histogram(aes(y = (..count..)/sum(..count..)), binwidth = 0.8) +
   scale_y_continuous(labels = scales::percent_format()) +
   labs(title = 'Reflected PAR - Log Scale') +
-  xlab(expression('ln(micromol/m'^2*'/s)')) + 
+  xlab(expression('Log Reflected PAR')) + 
   ylab("Percentage of Readings") +
   theme(plot.title = element_text(size=11,face="bold"))
 ```
 
 
-### Boxplot Analysis - Daytime Measurements Only
+### (b - Boxplot Analysis)
 
 <!-- ![Original Tolle Boxplots - 3c](./images/3c_plot_pic.JPG) -->
 
@@ -869,11 +875,11 @@ With the data stratified by day/night the gradients over the height of the tree 
 
 <!-- ![Original Tolle Boxplots - 3d](./images/3d_plot_pic.JPG) -->
 
-### Any suggestions for Tolle Figure 4?
+### (c  -Suggestions for Tolle Figure 4)
 
 We think discretizing the time plot (maybe showing every hour) would make the content more digestible. Both charts are also lacking a legend and leave the onus on the reader to discern which heights correspond to which colors. To more clearly show height gradient we believe using a two-color continuum (shortest to tallest) would more clearly display the trend similar to what the author did in Figure 5.
 
-### Comment on Tolle Figure 7.
+### (d - Comments on Tolle Figure 7)
 
 The last chart displaying yield as a function of height and day is confusing and could have been left off. What do the lengths of the horizontal bars represent? We also believe analyzing combined yield, in addition to individual data source yield, could have been beneficial to the reader. Presenting overlay charts across data sources might create better contrast between the two collection methods as it's difficult to make direct comparisons in the current format. The histograms we presented earlier, showing data source distinction by color, could have shown the importance of redundant data collection methods in a distributed sensor network and might have addressed some of the concerns in lessons learned about large gaps of missing data.
 
