@@ -1,5 +1,5 @@
 ---
-title: "Red Wood Data Analysis Report"
+title: "Project 1 Redwood Data Report"
 author: "Andrew Amore (1063292), Dylan/Shi-Ting Lu (1017295)"
 geometry: margin=1.15cm
 output: pdf_document
@@ -311,7 +311,6 @@ Drop NAs                341,659             -10,255
 Holistic View           277,241             -64,418
 Outlier Removal         264,932             -12,309
 ------------------      -----------------   --------------
-
 
 ```{r, distibution-of-missing-measurements}
 total_missing_data = union(duplicate_entries, na_data %>% select(-incident_par, -reflected_par), voltage_removed %>% select(epoch, nodeid, data_source, result_time, parent, voltage, depth, humidity, humid_temp, humid_adj, hamatop, hamabot))
@@ -744,7 +743,6 @@ ggplot(all, aes(x = log(incident_par + 0.001))) +
   theme(plot.title = element_text(size=11,face="bold"))
 ```
 
-
 Both log charts visually convey the long tail better than the non-log counter-parts. In fact, the log scale displays a bimodal distribution that could be interpreted sunlight differences between day/night. Some readers might be mislead/confused by the log interpretation. At first glance, PAR measurements appear more concentrated around a smaller range and it's important readers understand the log function before reaching an incorrect conclusion derived from the plots. We've displayed both versions for clarity.
 
 ```{r, 5a-reflected-charts}
@@ -773,7 +771,6 @@ ggplot(all, aes(x = log(reflected_par + 0.001))) +
 
 
 ### (b - Boxplot Analysis)
-
 
 ![](./images/q5b-height-value-box-plots_paper.jpeg)
 
@@ -831,7 +828,6 @@ We plotted the charts only considering daylight hours. With the data stratified 
 #dev.off
 ```
 
-
 ```{r,q5b-height-value-box-plots-DL-2}
 #Use the height from paper 
 # Height_from_paper = c(22.9, 29.3, 31.3, 34.2, 37.7, 42.9, 44.9, 46.6, 49.4, 49.6, 49.8, 50, 52.1, 53.7, 54, 54.5, 55.2, 57.8, 59.1, 60.1, 61.1, 62, 62.9, 63.5, 64.5, 65.5, 66.5)
@@ -874,7 +870,6 @@ We plotted the charts only considering daylight hours. With the data stratified 
 ```
 
 
-
 ### (c - Suggestions for Tolle Figure 4)
 
 We think discretizing the time plot (maybe showing every hour) would make the content more digestible. Both charts are also lacking a legend and leave the onus on the reader to discern which heights correspond to which colors. To more clearly show height gradient we believe using a two-color continuum (shortest to tallest) would more clearly display the trend similar to what the author did in Figure 5.
@@ -882,6 +877,7 @@ We think discretizing the time plot (maybe showing every hour) would make the co
 ### (d - Comments on Tolle Figure 7)
 
 The last chart displaying yield as a function of height and day is confusing and could have been left off. What do the lengths of the horizontal bars represent? We also believe analyzing combined yield, in addition to individual data source yield, could have been beneficial to the reader. Presenting overlay charts across data sources might create better contrast between the two collection methods as it's difficult to make direct comparisons in the current format. The histograms we presented earlier, showing data source distinction by color, could have shown the importance of redundant data collection methods in a distributed sensor network and might have addressed some of the concerns in lessons learned about large gaps of missing data.
+
 
 ***
 
