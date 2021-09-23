@@ -1,0 +1,45 @@
+---
+title: "test"
+author: "Andrew Amore"
+date: "9/22/2021"
+geometry: margin=1cm
+output: pdf_document
+---
+
+\vspace{-1cm}
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(ggplot2)
+library(caret)
+library(reshape2)
+library(GGally)
+library(dplyr)
+library(purrr)
+library(lubridate) # for working with dates
+library(ggplot2)  # for creating graphs
+library(scales)   # to access breaks/formatting functions
+library(gridExtra) # for arranging plots
+library(ggpubr)
+
+```
+## 2 Data Cleaning
+```{r, read-in-data, include=FALSE}
+all <- read.csv("sonoma-data-all.csv")
+log <- read.csv("sonoma-data-log.csv")
+#net <- read.csv("sonoma-data-net.csv")
+
+# metadata files
+dates <- read.table("sonoma-dates-formatted", sep=",", header = TRUE)   # losing some precision on epochDays
+```
+
+**Data Removal Step**    **Record Count**   **Net Change**
+---------------------   -----------------   --------------
+Ingestion               416,036                   0
+Duplicate Removal       393,213                 -22,823
+Voltage Removal         351,914             -41,299
+Drop NAs                341,659             -10,255
+Holistic View           277,241             -64,418
+Outlier Removal         264,932             -12,309
+------------------      -----------------   --------------
