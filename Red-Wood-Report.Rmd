@@ -1,7 +1,7 @@
 ---
 title: "Red Wood Data Analysis Report"
 author: "Andrew Amore, Dylan (Shi-Ting) Lu"
-geometry: margin=1cm
+geometry: margin=1.15cm
 output: pdf_document
 
 header-includes: |
@@ -773,11 +773,13 @@ ggplot(all, aes(x = log(reflected_par + 0.001))) +
 
 <!-- ![Original Tolle Boxplots - 3c](./images/3c_plot_pic.JPG) -->
 
+![](./images/q5b-height-value-box-plots_paper.jpeg)
+
 The boxplots from Figure 3[c] in the original paper are showing how the sensor measurements vary over the height of the tree. Tolle et al. are attempting to look for spatial gradients and trends by eliminating the temporal aspect of the data.
 
 With regards to the PAR charts I don't believe these plots convey the right message. I think the author should have split up the temporal ranges included in this chart. For example, the PAR temporal range should only include daytime, when the sun is shining. Including the full temporal range adds a large number of data points with 0 light readings and effectively pulls the mass closer to zero for all readings and makes the gradient less pronounced.
 
-We plotted the charts only considering daylight hours.
+We plotted the charts only considering daylight hours. With the data stratified by day, the gradients in incident/reflected PAR become much more clear.
 
 ```{r,q5b-height-value-box-plots}
 # try from 6:00 to 20:00
@@ -827,9 +829,9 @@ We plotted the charts only considering daylight hours.
 #dev.off
 ```
 
-![Modified Stacked Boxplots q5b](./images/q5b-height-value-box-plots_paper.jpeg)
+<!-- ![Modified Stacked Boxplots q5b](./images/q5b-height-value-box-plots_paper.jpeg) -->
 
-With the data stratified by day/night the gradients over the height of the tree become much more clear. For example, on the incident...
+
 
 ```{r,q5b-height-value-box-plots-DL-2}
 #Use the height from paper 
@@ -875,7 +877,7 @@ With the data stratified by day/night the gradients over the height of the tree 
 
 <!-- ![Original Tolle Boxplots - 3d](./images/3d_plot_pic.JPG) -->
 
-### (c  -Suggestions for Tolle Figure 4)
+### (c - Suggestions for Tolle Figure 4)
 
 We think discretizing the time plot (maybe showing every hour) would make the content more digestible. Both charts are also lacking a legend and leave the onus on the reader to discern which heights correspond to which colors. To more clearly show height gradient we believe using a two-color continuum (shortest to tallest) would more clearly display the trend similar to what the author did in Figure 5.
 
