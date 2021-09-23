@@ -1,6 +1,6 @@
 ---
 title: "Red Wood Data Analysis Report"
-author: "Andrew Amore, Dylan (Shi-Ting) Lu"
+author: "Andrew Amore (1063292), Dylan/Shi-Ting Lu (1017295)"
 geometry: margin=1.15cm
 output: pdf_document
 
@@ -56,7 +56,6 @@ Data in "sonoma-data-log.csv" represents sensor data saved from the logger to th
 The main difference between the files is that the scaling/precision on voltage measurements appear different between the two sources. The network file also appears to have some row duplication.
 
 
-
 ## 2 Data Cleaning
 ```{r, read-in-data, include=FALSE}
 all <- read.csv("sonoma-data-all.csv")
@@ -106,8 +105,6 @@ Voltage units are not consistent across the two sources. Figure 2 illustrates th
 $$ Voltage = (0.6)\frac{1024}{V_{network}} $$
 
 Hamatop and hamabot measures had consistent units across data sources, but did not match the scale reported in the Tolle paper. These units were converted to match by multiplying both metrics by a conversion factor 0.0185.
-
-<!-- $$ \text{Incident PAR} = [hamatop \ or \ hamabot]*0.0185 $$ -->
 
 Each record, unique to the data source, has a composite key identifier: nodeid and epoch. During exploratory analysis we identified duplicate entries. Figure 3 displays a distinct count of nodeid/epoch combinations which appear more than once. For example, there are 8,286 affected composite keys from the logger data source that have been duplicated anywhere from two to four times.
 
@@ -633,16 +630,6 @@ rm(df)
 
 Here the first two principal component score vectors were plotted for each of the height classes. What's interesting is we see tight groupings for sensors mounted below 30 m and much more variability as measurements are recorded at higher elevations. We initial suspected this variability was due the sample size recorded at each height, with more samples recorded at higher levels becuase of more sensors. However, looking at the table we see the most measurements in the 40-50 meter height range, but much more variability in the 60+ meter class. Intuitively we suspect that the top of the tree presents a harsher environment that is more exposed to weather patterns than the base that is more densely protected by foliage. This explanation could explain the wide dispersion of points at heigher measurement levels.
 
-<!-- **Height Class**              **n** -->
-<!-- ---------------------     -------------- -->
-<!-- 10 - 20 m                 2,638        -->
-<!-- 20 - 30 m                 32,633 -->
-<!-- 30 - 40 m                 29,644 -->
-<!-- 40 - 50 m                 82,201 -->
-<!-- 50 - 60 m                 64,121 -->
-<!-- 60+ m                     51,494 -->
-<!-- NA                        2,201 -->
-<!-- ---------------------     -------------- -->
 
 **NA**    **10 - 20 m**    **20 - 30 m**    **30 - 40 m**    **40 - 50 m**    **50 - 60 m**    **60+ m**
 ------    -------------    -------------    -------------    -------------    -------------    ---------
@@ -662,19 +649,30 @@ mx_reflected_par_pts = mx_reflected_par_pts %>%
   mutate(timeboundary = case_when(time >= "16:00:00" & time <= "17:00:00" ~ TRUE, TRUE ~ FALSE))
 ```
 
-```{r, fig.height = 3, fig.width = 5, fig.align="center"}
-ggplot(mx_reflected_par_pts, aes(date_concat, reflected_par, color = timeboundary)) + 
+```{r, fig.height = 3, fig.width = 9, fig.align="center"}
+plot1 = ggplot(mx_reflected_par_pts, aes(date_concat, reflected_par, color = timeboundary)) + 
   geom_point() + 
   labs(title = "Maximum Reflected PAR", x = "Day", y = "Reflected PAR (mol/m"^"2"~"/s)", color = "Time Within 16:00 - 17:00") +
   geom_hline(yintercept = mean(mx_reflected_par_pts$reflected_par), color="blue") +
   theme(plot.title = element_text(size=11,face="bold"))
 
+
 # histogram of the reflected par max readings
-# dtTime = as.numeric(mx_reflected_par_pts$date_concat - trunc(mx_reflected_par_pts$date_concat, "days"))
+dtTime = data.frame(tm = as.numeric(mx_reflected_par_pts$date_concat - trunc(mx_reflected_par_pts$date_concat, "days")))
+dtTime$cond = dtTime$tm >= "16:00:00" & dtTime$tm <= "17:00:00"
+plot2 = ggplot(dtTime, aes(tm, fill = cond)) +
+  geom_histogram() +
+  labs(x = "Hour of Day", y = "Frequency") +
+  ggtitle("Maximum Reflected PAR Time Histogram") +
+  theme(plot.title = element_text(size=11,face="bold")) +
+  guides(fill=guide_legend(title="Time Within 16:00 - 17:00"))
+
+ggarrange(plot1, plot2, ncol=2, nrow=1, common.legend = TRUE, legend="bottom")
+# 
 # hist(dtTime, main = "Max Reflected PAR Hist", xlab = "Hour of Day")
 ```
 
-We noticed in the reflected PAR time series plots the maximum reading varied quite a bit more day to day than the incident PAR measures. The scatter plot shows the maximum reading by day with a blue line representing the average max value. Notice the large amount of variability. We wanted to know if the distribution 
+We noticed in the reflected PAR time series plots the maximum reading varied across days more relative to incident PAR readings. The scatter plot shows the maximum reading by day with a blue line representing the average max value. Notice the large amount of variability. We wanted to know if the distribution of the hour of the day, corresponding to the sun height, was centered around a specific time/max value. The histogram shows that around the evening hour we get most of our maximum measurements. Tolle mentioned the PAR sensors were incredible sensitive to changes in light angles and we believe that this finding proves that thought. We would expect the reflected PAR max trend to be similar to the incident PAR, but we believe the difference could be explain by cloud cover between hours 16:00 - 17:00 which is why we see this wide dispersion in the histogram.
 
 ### Finding 3
 How much does the humidity and temperature vary with height during the day?
@@ -776,7 +774,6 @@ ggplot(all, aes(x = log(reflected_par + 0.001))) +
 
 ### (b - Boxplot Analysis)
 
-<!-- ![Original Tolle Boxplots - 3c](./images/3c_plot_pic.JPG) -->
 
 ![](./images/q5b-height-value-box-plots_paper.jpeg)
 
@@ -834,9 +831,6 @@ We plotted the charts only considering daylight hours. With the data stratified 
 #dev.off
 ```
 
-<!-- ![Modified Stacked Boxplots q5b](./images/q5b-height-value-box-plots_paper.jpeg) -->
-
-
 
 ```{r,q5b-height-value-box-plots-DL-2}
 #Use the height from paper 
@@ -880,7 +874,6 @@ We plotted the charts only considering daylight hours. With the data stratified 
 ```
 
 
-<!-- ![Original Tolle Boxplots - 3d](./images/3d_plot_pic.JPG) -->
 
 ### (c - Suggestions for Tolle Figure 4)
 
@@ -890,8 +883,28 @@ We think discretizing the time plot (maybe showing every hour) would make the co
 
 The last chart displaying yield as a function of height and day is confusing and could have been left off. What do the lengths of the horizontal bars represent? We also believe analyzing combined yield, in addition to individual data source yield, could have been beneficial to the reader. Presenting overlay charts across data sources might create better contrast between the two collection methods as it's difficult to make direct comparisons in the current format. The histograms we presented earlier, showing data source distinction by color, could have shown the importance of redundant data collection methods in a distributed sensor network and might have addressed some of the concerns in lessons learned about large gaps of missing data.
 
+***
+
 
 <!-- ## Appendix -->
+
+
+
+<!-- ![Original Tolle Boxplots - 3c](./images/3c_plot_pic.JPG) -->
+<!-- ![Original Tolle Boxplots - 3d](./images/3d_plot_pic.JPG) -->
+<!-- ![Modified Stacked Boxplots q5b](./images/q5b-height-value-box-plots_paper.jpeg) -->
+
+<!-- **Height Class**              **n** -->
+<!-- ---------------------     -------------- -->
+<!-- 10 - 20 m                 2,638        -->
+<!-- 20 - 30 m                 32,633 -->
+<!-- 30 - 40 m                 29,644 -->
+<!-- 40 - 50 m                 82,201 -->
+<!-- 50 - 60 m                 64,121 -->
+<!-- 60+ m                     51,494 -->
+<!-- NA                        2,201 -->
+<!-- ---------------------     -------------- -->
+
 
 ```{r}
 # Extra Charts
