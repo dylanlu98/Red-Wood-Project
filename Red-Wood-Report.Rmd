@@ -678,7 +678,7 @@ We noticed in the reflected PAR time series plots the maximum reading varied qui
 
 ### Finding 3
 How much does the humidity and temperature vary with height during the day?
-```{r, interesting-finding-3 - DL}
+```{r, interesting-finding-3 - DL, include = FALSE}
 # try from 6:00 to 20:00
 day_time = all %>%
   filter(time >= "06" & time <= "20")
@@ -699,17 +699,21 @@ day_time_for_box_plots_paper = day_time_for_box_plots_paper %>%
 temp_class = ggplot(day_time_for_box_plots_paper, aes(x=humid_temp, y=height_class, group = height_class)) + 
     geom_boxplot(color = "blue", outlier.shape = NA,width = 0.5,position = "dodge") + labs(x = "Temperature", y = "Height Class (m)")
  
-# humidity
+
 humid_class = ggplot(day_time_for_box_plots_paper, aes(x=humidity, y=height_class, group = height_class),) + 
     geom_boxplot(color = "blue", outlier.shape = NA,width = 0.5,position = "dodge") + labs(x = "Temperature", y = "Height Class (m)")
-
 ```
 
-```{r,fig.height = 3, fig.width = 10, fig.align="center"}
+```{r,fig.height = 3, fig.width = 10, fig.align="center", include = FALSE}
+jpeg("q4-interesting findings-3.jpeg", width = 6, height = 4, units = 'in', res = 300)
+# humidity
 ggarrange(temp_class, humid_class,
                    labels = c("Temperature", "Humidity"),
                    ncol = 2, nrow = 1)
+dev.off
 ```
+
+![Modified Stacked Boxplots q5b](./images/q4-interesting findings-3.jpeg)
 
 Our hypothesis is that the temperature measured should be lower at the bottom of the red wood during day time and it should have a positive relationship with height. The humidity measured would be vice versa and have a negative relationship with hight. The explanation is that the top of the red wood receives a larger amount of incident PAR and reflective PAR, and therefore have more energy and higher temperature. Correspondingly, The higher the temperature, the faster the water vapors, which leads to a lower humidity. The stacked box plot based on height during day time (6am-8pm) confirms our hypothesis. The 20-30 m range shows lower mean temperature and higher mean humidity. However it is interesting to notice that except in the 20-30 m range, the temperature do not vary significantly in the 30-60m range. The linear relationships we assume are not supported by our data. Our findings correspond to the findings of Tolle (Tolle,2005). The stacked box plot from Tolle shows that the middle part of the red wood has a comparative consistent temperature through out the day and night. In conclusion, we suppose that red woods have a spacial homeostasis mechanism that regulates its temperature and humidity in the middle part.It would be an interesting research topic to find out the working principle of this homeostasis.
 =======
