@@ -1,22 +1,6 @@
 # STA521 Project 1 - Red Wood Data Analysis Report
 #### Andrew Amore & Dylan (Shi-Ting) Lu
 
-## TODO::
-- ~~Remove duplicates from all data file. Composite key should only have one reading for every entry in our analysis set and right now this isn't the case.~~
-
-- ~~Remove NA rows~~
-
-- ~~Clean data to match the quartiles from paper (value dimension). Get close to the values or we probably need to have an explanation for why they aren't close).~~
-
-- ~~fix formatting on box plots in 5b to match the Tolle paper (code chunk name: q5b-height-value-box-plots)~~
-
-- Finish question 4
-
-- ~~Write about interesting trends in 3c~~
-
-- Final chart validation and clean up. Look over charts to make sure the trends make sense, plots have accurate labels, titles, are legible, etc.
-
-
 ***
 ### Initial Contents of Tolle et al. Readme
 A Macroscope in the Redwoods
