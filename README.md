@@ -7,7 +7,7 @@ This project is contributed by
 The data was collected in Sonoma, California on a single Redwood tree over a period of days at consistent time intervals during
 the late spring/early summer. The main goal is to replicate the finding of Tolle et al (2005),  verify the existence of dynamic spatio-temporal gradients surrounding the tree and prove that complex biological theories can be validated using this measurement framework. 
 
-We perform
+We performed following analysis on the datasets
 1. Data cleaning
 1. Exploratory data analysis
 3. K-mean clustering
