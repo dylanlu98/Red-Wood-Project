@@ -1,16 +1,24 @@
 # Red Wood Data Analysis
 #### Andrew Amore & Dylan (Shi-Ting) Lu
 
-This is a project attributed to 
+This project is contributed by 
 1. Andrew Amore (Duke University)
 2. Dylan (Shi-Ting) Lu (Duke University)
 
-
 The data was collected in Sonoma, California on a single Redwood tree over a period of days at consistent time intervals during
-the late spring/early summer. The main goal is to replicate the finding of Tolle et al (2005),  verify the existence of dynamic spatio-temporal gradients surrounding the tree and prove that complex biological theories can be validated using this measurement framework.We performed a exploratory data analysis and visualized results. 
+the late spring/early summer. The main goal is to replicate the finding of Tolle et al (2005),  verify the existence of dynamic spatio-temporal gradients surrounding the tree and prove that complex biological theories can be validated using this measurement framework. 
+
+We perform
+1. Data cleaning
+1. Exploratory data analysis
+3. K-mean clustering
+4. Principal Component Analysis (PCA analysis)
+5. Visualization
 
 ## Documentation
-Original Data
+
+"Red-Wood-Report.Rmd"
+  - This is the main file that runs the data analysis
 
 mote-location-data.txt
   - Location of each mote within the 2 trees
