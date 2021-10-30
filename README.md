@@ -1,5 +1,4 @@
 # Red Wood Data Analysis
-#### Andrew Amore & Dylan (Shi-Ting) Lu
 
 This project is contributed by 
 1. Andrew Amore (Duke University)
