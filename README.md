@@ -17,7 +17,7 @@ We perform
 
 ## Documentation
 
-"Red-Wood-Report.Rmd"
+Red-Wood-Report.Rmd
   - This is the main file that runs the data analysis
 
 mote-location-data.txt
