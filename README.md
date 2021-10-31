@@ -16,6 +16,9 @@ We performed following analysis on the datasets
 
 ## Documentation
 
+Red-Wood-Report.Pdf
+  - This is the final report with figures and texts
+
 Red-Wood-Report.Rmd
   - This is the main file that runs the data analysis
 
